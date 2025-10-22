@@ -69,7 +69,7 @@ func (d *DockerApplication) BuildAndPush(image domain.DockerImage, credentials d
 	}
 
 	// Push the Docker image
-	pushCmd := exec.Command("docker", "push", imageTag)
+	pushCmd := exec.Command("docker", "push", "--platform", "linux/amd64", imageTag)
 	pushOutput, pushErr := pushCmd.CombinedOutput()
 
 	// Always include push output in the response for visibility

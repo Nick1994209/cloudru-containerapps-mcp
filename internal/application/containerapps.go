@@ -136,8 +136,15 @@ func (c *ContainerAppsApplication) CreateContainerApp(projectID string, containe
 			"ingress": map[string]interface{}{
 				"publiclyAccessible": true,
 			},
+			"autoDeployments": map[string]interface{}{
+				"enabled": false,
+				"pattern": "",
+			},
+			"privileged": false,
 		},
 		"template": map[string]interface{}{
+			"timeout":     "60s",
+			"idleTimeout": "600s",
 			"containers": []map[string]interface{}{
 				{
 					"name":          containerAppName,
@@ -147,6 +154,12 @@ func (c *ContainerAppsApplication) CreateContainerApp(projectID string, containe
 						{
 							"name":  "CONTAINERAPP_NAME",
 							"value": containerAppName,
+						},
+					},
+					"resources": []map[string]string{
+						{
+							"cpu":    "0.1",
+							"memory": "256Mi",
 						},
 					},
 				},
