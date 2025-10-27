@@ -1,4 +1,4 @@
-module cloudru-containerapps-mcp
+module github.com/Nick1994209/cloudru-containerapps-mcp
 
 go 1.23.0
 
@@ -10,6 +10,7 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
