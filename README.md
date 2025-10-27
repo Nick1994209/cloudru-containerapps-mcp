@@ -17,7 +17,7 @@ With MCP, you can:
 Instead of manually performing tasks, you can simply ask your AI assistant:
 
 ```
-"Deploy my latest application changes to Cloud.ru Container Apps"
+"Build image, push and deploy to Cloud.ru Container Apps via MCP"
 ```
 
 Your AI assistant, using this MCP server, can then:

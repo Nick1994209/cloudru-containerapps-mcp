@@ -31,8 +31,6 @@ func (d *DescriptionApplication) GetDescription() string {
 10. cloudru_get_containerapp_logs(project_id, containerapp_name) - Get logs for a specific Container App from Cloud.ru by name. Project ID can be set via PROJECT_ID environment variable and obtained from console.cloud.ru
 11. cloudru_get_list_docker_registries(project_id) - Get list of Docker Registries from Cloud.ru. Project ID can be set via PROJECT_ID environment variable and obtained from console.cloud.ru
 12. cloudru_create_docker_registry(project_id, registry_name, registry_is_public) - Create a new Docker Registry in Cloud.ru
-13. cloudru_get_registry_images(registry_name) - Get list of images from a Docker registry in Cloud.ru
-14. cloudru_get_containerapp_system_logs(project_id, containerapp_name) - Get system logs for a specific Container App from Cloud.ru by name. Project ID can be set via PROJECT_ID environment variable and obtained from console.cloud.ru
 
 Environment variables can be used as fallbacks for parameters:
 

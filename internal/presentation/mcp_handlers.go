@@ -239,6 +239,18 @@ func (s *MCPServer) getMCPFieldValue(field string, request mcp.CallToolRequest) 
 	return "", fmt.Errorf("field %s is empty: %s", field, fieldData.description)
 }
 
+func (s *MCPServer) getMCPBooleanFieldValue(field string, request mcp.CallToolRequest) (bool, error) {
+	fieldValueStr, _ := s.getMCPFieldValue(field, request)
+
+	if fieldValueStr == "true" || fieldValueStr == "1" {
+		return true, nil
+	} else if fieldValueStr == "false" || fieldValueStr == "0" {
+		return false, nil
+	} else {
+		return false, fmt.Errorf("field %s must be 'true', 'false', '1', or '0', got: %s", field, fieldValueStr)
+	}
+}
+
 // RegisterDescriptionTool registers the description tool with the MCP server
 func (s *MCPServer) RegisterDescriptionTool(server *server.MCPServer) {
 	descriptionTool := mcp.NewTool("cloudru_containerapps_description",
@@ -312,11 +324,10 @@ func (s *MCPServer) RegisterDockerBuildAndPushTool(server *server.MCPServer) {
 		}
 
 		// Determine whether to execute build/push or just return commands
-		showCommandsStr, err := s.getMCPFieldValue("show_commands", request)
+		showCommands, err := s.getMCPBooleanFieldValue("show_commands", request)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
-		showCommands := showCommandsStr == "true" || showCommandsStr == "1"
 
 		if showCommands {
 			buildCmd, pushCmd, err := s.dockerService.ShowBuildAndPushCommands(image)
@@ -455,24 +466,18 @@ func (s *MCPServer) RegisterCreateContainerAppTool(server *server.MCPServer) {
 		}
 
 		// Get auto deployments enabled
-		autoDeploymentsEnabledStr, _ := s.getMCPFieldValue("containerapp_auto_deployments_enabled", request)
-		var autoDeploymentsEnabled bool
-		if autoDeploymentsEnabledStr == "true" || autoDeploymentsEnabledStr == "1" {
-			autoDeploymentsEnabled = true
-		} else {
-			autoDeploymentsEnabled = false
+		autoDeploymentsEnabled, err := s.getMCPBooleanFieldValue("containerapp_auto_deployments_enabled", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Get auto deployments pattern
 		autoDeploymentsPattern, _ := s.getMCPFieldValue("containerapp_auto_deployments_pattern", request)
 
 		// Get privileged
-		privilegedStr, _ := s.getMCPFieldValue("containerapp_privileged", request)
-		var privileged bool
-		if privilegedStr == "true" || privilegedStr == "1" {
-			privileged = true
-		} else {
-			privileged = false
+		privileged, err := s.getMCPBooleanFieldValue("containerapp_privileged", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Get idle timeout
@@ -771,19 +776,9 @@ func (s *MCPServer) RegisterCreateDockerRegistryTool(server *server.MCPServer) {
 		}
 
 		// Get registry_is_public flag
-		isPublicStr, err := s.getMCPFieldValue("registry_is_public", request)
+		isPublic, err := s.getMCPBooleanFieldValue("registry_is_public", request)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
-		}
-
-		// Convert registry_is_public to boolean
-		var isPublic bool
-		if isPublicStr == "true" || isPublicStr == "1" {
-			isPublic = true
-		} else if isPublicStr == "false" || isPublicStr == "0" {
-			isPublic = false
-		} else {
-			return mcp.NewToolResultError("registry_is_public must be 'true' or 'false'"), nil
 		}
 
 		// Call the service

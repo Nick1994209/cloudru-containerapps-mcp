@@ -3,16 +3,24 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/application"
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/application/cloudru"
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/config"
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/presentation"
+	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/version"
 
 	"github.com/mark3labs/mcp-go/server"
 )
 
 func main() {
+	// Check for version flag
+	if len(os.Args) > 1 && os.Args[1] == "--version" {
+		fmt.Println(version.GetVersionInfo())
+		return
+	}
+
 	// Load configuration
 	cfg := config.LoadConfig()
 
@@ -34,7 +42,7 @@ func main() {
 	// Create a new MCP server
 	s := server.NewMCPServer(
 		"Cloud.ru Container Apps MCP",
-		"0.0.1",
+		version.GetVersion(),
 		server.WithToolCapabilities(true),
 		server.WithRecovery(),
 	)
