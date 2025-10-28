@@ -28,29 +28,35 @@ Your AI assistant, using this MCP server, can then:
 
 All of this happens automatically through natural language commands, making complex DevOps tasks accessible to everyone.
 
-## Features
-
-This MCP provides the following functions:
-
-1. `cloudru_containerapps_description()` - Returns usage instructions for this MCP
-2. `cloudru_docker_login(registry_name)` - Login to Cloud.ru Artifact registry (Docker registry)
-3. `cloudru_docker_build_and_push(registry_name, repository_name, image_version, dockerfile_path, dockerfile_target, dockerfile_folder, show_commands)` - Build and push Docker image to Cloud.ru Artifact Registry (Docker registry)
-4. `cloudru_get_list_containerapps(project_id)` - Get list of Container Apps from Cloud.ru. Project ID can be set via PROJECT_ID environment variable and obtained from console.cloud.ru
-5. `cloudru_get_containerapp(project_id, containerapp_name)` - Get a specific Container App from Cloud.ru by name. Project ID can be set via PROJECT_ID environment variable and obtained from console.cloud.ru
-6. `cloudru_create_containerapp(project_id, containerapp_name, containerapp_port, containerapp_image, containerapp_auto_deployments_enabled, containerapp_auto_deployments_pattern, containerapp_privileged, containerapp_idle_timeout, containerapp_timeout, containerapp_cpu)` - Create a new Container App in Cloud.ru
-7. `cloudru_delete_containerapp(project_id, containerapp_name)` - Delete a Container App from Cloud.ru. WARNING: This action cannot be undone!
-8. `cloudru_start_containerapp(project_id, containerapp_name)` - Start a Container App in Cloud.ru
-9. `cloudru_stop_containerapp(project_id, containerapp_name)` - Stop a Container App in Cloud.ru
-10. `cloudru_get_containerapp_logs(project_id, containerapp_name)` - Get logs for a specific Container App from Cloud.ru by name. Project ID can be set via PROJECT_ID environment variable and obtained from console.cloud.ru
-11. `cloudru_get_list_docker_registries(project_id)` - Get list of Docker Registries from Cloud.ru. Project ID can be set via PROJECT_ID environment variable and obtained from console.cloud.ru
-12. `cloudru_create_docker_registry(project_id, registry_name, registry_is_public)` - Create a new Docker Registry in Cloud.ru
-13. `cloudru_get_registry_images(registry_name)` - Get list of images from a Docker registry in Cloud.ru
 
 ## Installation cloudru-containerapps-mcp to your system
+```bash
+go install github.com/Nick1994209/cloudru-containerapps-mcp/cmd/cloudru-containerapps-mcp@latest
+```
 [docs/INSTALLATION.md](docs/INSTALLATION.md)
 
 ## Add cloudru-containerapps-mcp to your IDE. For example VisualStudioCode or Cursor
+Added MCP Setup
+```json
+{
+  "mcpServers": {
+    "cloudru-containerapps-mcp": {
+      "command": "cloudru-containerapps-mcp",
+      "args": [],
+      "env": {
+        "CLOUDRU_KEY_ID": "********",
+        "CLOUDRU_KEY_SECRET": "********",
+        "CLOUDRU_PROJECT_ID": "********",
+      },
+      "timeout": 900,
+      "disabledTools": []
+    }
+  }
+}
+```
 [docs/HOW_ADD_TO_IDE.md](docs/HOW_ADD_TO_IDE.md)
+
+The server will listen for JSON-RPC messages on stdin/stdout.
 
 ## MCP Environment variables
 [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md)
@@ -195,22 +201,6 @@ The following functions are implemented but currently disabled in the main.go fi
 2. `cloudru_get_registry_images()` - Get list of images from a Docker registry (line 56 is commented out)
 
 To enable these functions, uncomment the respective registration lines in [`cmd/cloudru-containerapps-mcp/main.go`](cmd/cloudru-containerapps-mcp/main.go).
-
-## Running the MCP Server
-
-To start the MCP server, you can use either the locally built binary or the Go-installed binary:
-
-### Using the locally built binary:
-
-```bash
-git clone <this repo>
-cd cloudru-containerapps-mcp
-go build -o cloudru-containerapps-mcp cmd/cloudru-containerapps-mcp/main.go
-./cloudru-containerapps-mcp
-```
-or [docs/INSTALLATION.md](docs/INSTALLATION.md)
-
-The server will listen for JSON-RPC messages on stdin/stdout.
 
 ## Documentation
 
