@@ -196,8 +196,9 @@ func NewMCPServer(descriptionService domain.DescriptionService, dockerService do
 			},
 			"containerapp_protocol": {
 				description:  "Protocol for the container app",
-				defaultValue: "http",
+				defaultValue: "http_1",
 				required:     false,
+				title:        "Options: http_1, http_2",
 			},
 			"containerapp_environment_variables": {
 				description:  "Environment variables in format <name>='<value>';<next_name>='value2'",
@@ -573,7 +574,7 @@ func (s *MCPServer) RegisterCreateContainerAppTool(server *server.MCPServer) {
 		// Get protocol
 		protocol, _ := s.getMCPFieldValue("containerapp_protocol", request)
 		if protocol == "" {
-			protocol = "http"
+			protocol = "http_1"
 		}
 
 		// Get environment variables

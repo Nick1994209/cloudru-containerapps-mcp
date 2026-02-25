@@ -129,7 +129,7 @@ Parameters:
 - `containerapp_max_instance_count`: Maximum number of instances for scaling (optional, defaults to "1")
 - `containerapp_description`: Description of the container app (optional, defaults to empty string)
 - `containerapp_publicly_accessible`: Whether the container app is publicly accessible (optional, defaults to "true")
-- `containerapp_protocol`: Protocol for the container app (optional, defaults to "http")
+- `containerapp_protocol`: Protocol for the container app (optional, defaults to "http_1", options: http_1, http_2)
 - `containerapp_environment_variables`: Environment variables in format <name>='<value>';<next_name>='value2' (optional)
 - `containerapp_command`: Command to run in the container (comma-separated values) (optional)
 - `containerapp_args`: Arguments for the command (comma-separated values) (optional)

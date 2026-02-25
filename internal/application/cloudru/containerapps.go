@@ -156,7 +156,7 @@ func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateConta
 		description = fmt.Sprintf("Container App %s created via MCP", containerAppName)
 	}
 	if protocol == "" {
-		protocol = "http"
+		protocol = "http_1"
 	}
 	token, err := c.authService.GetAccessToken()
 	if err != nil {
