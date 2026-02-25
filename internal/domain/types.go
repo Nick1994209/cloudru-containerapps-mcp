@@ -18,16 +18,24 @@ type DockerImage struct {
 
 // CreateContainerAppRequest represents a request to create a Container App
 type CreateContainerAppRequest struct {
-	ProjectID              string `json:"projectId"`
-	ContainerAppName       string `json:"containerAppName"`
-	ContainerAppPort       int    `json:"containerAppPort"`
-	ContainerAppImage      string `json:"containerAppImage"`
-	AutoDeploymentsEnabled bool   `json:"autoDeploymentsEnabled"`
-	AutoDeploymentsPattern string `json:"autoDeploymentsPattern"`
-	Privileged             bool   `json:"privileged"`
-	IdleTimeout            string `json:"idleTimeout"`
-	Timeout                string `json:"timeout"`
-	CPU                    string `json:"cpu"`
+	ProjectID              string   `json:"projectId"`
+	ContainerAppName       string   `json:"containerAppName"`
+	ContainerAppPort       int      `json:"containerAppPort"`
+	ContainerAppImage      string   `json:"containerAppImage"`
+	AutoDeploymentsEnabled bool     `json:"autoDeploymentsEnabled"`
+	AutoDeploymentsPattern string   `json:"autoDeploymentsPattern"`
+	Privileged             bool     `json:"privileged"`
+	IdleTimeout            string   `json:"idleTimeout"`
+	Timeout                string   `json:"timeout"`
+	CPU                    string   `json:"cpu"`
+	MinInstanceCount       int      `json:"minInstanceCount"`
+	MaxInstanceCount       int      `json:"maxInstanceCount"`
+	Description            string   `json:"description"`
+	PubliclyAccessible     bool     `json:"publiclyAccessible"`
+	Protocol               string   `json:"protocol"`
+	EnvironmentVariables   string   `json:"environmentVariables"`
+	Command                []string `json:"command"`
+	Args                   []string `json:"args"`
 }
 
 // ContainerApp represents a Cloud.ru Container App

@@ -136,6 +136,28 @@ func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateConta
 	idleTimeout := request.IdleTimeout
 	timeout := request.Timeout
 	cpu := request.CPU
+	minInstanceCount := request.MinInstanceCount
+	maxInstanceCount := request.MaxInstanceCount
+	description := request.Description
+	publiclyAccessible := request.PubliclyAccessible
+	protocol := request.Protocol
+	environmentVariables := request.EnvironmentVariables
+	command := request.Command
+	args := request.Args
+
+	// Set default values if not provided
+	if minInstanceCount == 0 {
+		minInstanceCount = 0
+	}
+	if maxInstanceCount == 0 {
+		maxInstanceCount = 1
+	}
+	if description == "" {
+		description = fmt.Sprintf("Container App %s created via MCP", containerAppName)
+	}
+	if protocol == "" {
+		protocol = "http"
+	}
 	token, err := c.authService.GetAccessToken()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access token: %w", err)
@@ -157,14 +179,38 @@ func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateConta
 		memory = "256Mi" // default memory for unknown CPU values
 	}
 
+	// Parse environment variables from format <name>='<value>';<next_name>='value2'
+	var envVars []map[string]interface{}
+	if environmentVariables != "" {
+		// Split by semicolon
+		variables := strings.Split(environmentVariables, ";")
+		for _, variable := range variables {
+			// Split by first equals sign
+			parts := strings.SplitN(variable, "=", 2)
+			if len(parts) == 2 {
+				name := strings.TrimSpace(parts[0])
+				value := strings.TrimSpace(parts[1])
+				// Remove quotes if present
+				if strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") {
+					value = value[1 : len(value)-1]
+				}
+				envVars = append(envVars, map[string]interface{}{
+					"name":  name,
+					"value": value,
+					"type":  "plain",
+				})
+			}
+		}
+	}
+
 	// Prepare the request payload
 	payload := map[string]interface{}{
 		"name":        containerAppName,
 		"projectId":   projectID,
-		"description": fmt.Sprintf("Container App %s created via MCP", containerAppName),
+		"description": description,
 		"configuration": map[string]interface{}{
 			"ingress": map[string]interface{}{
-				"publiclyAccessible": true,
+				"publiclyAccessible": publiclyAccessible,
 			},
 			"autoDeployments": map[string]interface{}{
 				"enabled": autoDeploymentsEnabled,
@@ -175,6 +221,11 @@ func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateConta
 		"template": map[string]interface{}{
 			"timeout":     timeout,
 			"idleTimeout": idleTimeout,
+			"protocol":    protocol,
+			"scaling": map[string]interface{}{
+				"minInstanceCount": minInstanceCount,
+				"maxInstanceCount": maxInstanceCount,
+			},
 			"containers": []map[string]interface{}{
 				{
 					"name":          containerAppName,
@@ -184,9 +235,18 @@ func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateConta
 						"cpu":    cpu,
 						"memory": memory,
 					},
+					"env": envVars,
 				},
 			},
 		},
+	}
+
+	// Add command and args to the container if provided
+	if len(command) > 0 {
+		payload["template"].(map[string]interface{})["containers"].([]map[string]interface{})[0]["command"] = command
+	}
+	if len(args) > 0 {
+		payload["template"].(map[string]interface{})["containers"].([]map[string]interface{})[0]["args"] = args
 	}
 
 	// Convert payload to JSON

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/config"
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/domain"
@@ -172,6 +173,46 @@ func NewMCPServer(descriptionService domain.DescriptionService, dockerService do
 				defaultValue: "0.1",
 				required:     false,
 				title:        "Options: 0.1, 0.2, 0.5, 1",
+			},
+			"containerapp_min_instance_count": {
+				description:  "Minimum number of instances for scaling",
+				defaultValue: "0",
+				required:     false,
+			},
+			"containerapp_max_instance_count": {
+				description:  "Maximum number of instances for scaling",
+				defaultValue: "1",
+				required:     false,
+			},
+			"containerapp_description": {
+				description:  "Description of the container app",
+				defaultValue: "",
+				required:     false,
+			},
+			"containerapp_publicly_accessible": {
+				description:  "Whether the container app is publicly accessible",
+				defaultValue: "true",
+				required:     false,
+			},
+			"containerapp_protocol": {
+				description:  "Protocol for the container app",
+				defaultValue: "http",
+				required:     false,
+			},
+			"containerapp_environment_variables": {
+				description:  "Environment variables in format <name>='<value>';<next_name>='value2'",
+				defaultValue: "",
+				required:     false,
+			},
+			"containerapp_command": {
+				description:  "Command to run in the container (comma-separated values)",
+				defaultValue: "",
+				required:     false,
+			},
+			"containerapp_args": {
+				description:  "Arguments for the command (comma-separated values)",
+				defaultValue: "",
+				required:     false,
 			},
 		},
 	}
@@ -433,6 +474,14 @@ func (s *MCPServer) RegisterCreateContainerAppTool(server *server.MCPServer) {
 		"containerapp_idle_timeout",
 		"containerapp_timeout",
 		"containerapp_cpu",
+		"containerapp_min_instance_count",
+		"containerapp_max_instance_count",
+		"containerapp_description",
+		"containerapp_publicly_accessible",
+		"containerapp_protocol",
+		"containerapp_environment_variables",
+		"containerapp_command",
+		"containerapp_args",
 	)
 	createContainerAppTool := mcp.NewTool("cloudru_create_containerapp", toolOptions...)
 
@@ -498,6 +547,62 @@ func (s *MCPServer) RegisterCreateContainerAppTool(server *server.MCPServer) {
 			cpu = "0.1"
 		}
 
+		// Get min instance count
+		minInstanceCountStr, _ := s.getMCPFieldValue("containerapp_min_instance_count", request)
+		var minInstanceCount int
+		if minInstanceCountStr != "" {
+			fmt.Sscanf(minInstanceCountStr, "%d", &minInstanceCount)
+		}
+
+		// Get max instance count
+		maxInstanceCountStr, _ := s.getMCPFieldValue("containerapp_max_instance_count", request)
+		var maxInstanceCount int
+		if maxInstanceCountStr != "" {
+			fmt.Sscanf(maxInstanceCountStr, "%d", &maxInstanceCount)
+		}
+
+		// Get description
+		description, _ := s.getMCPFieldValue("containerapp_description", request)
+
+		// Get publicly accessible
+		publiclyAccessible, err := s.getMCPBooleanFieldValue("containerapp_publicly_accessible", request)
+		if err != nil {
+			publiclyAccessible = true // default value
+		}
+
+		// Get protocol
+		protocol, _ := s.getMCPFieldValue("containerapp_protocol", request)
+		if protocol == "" {
+			protocol = "http"
+		}
+
+		// Get environment variables
+		environmentVariables, _ := s.getMCPFieldValue("containerapp_environment_variables", request)
+
+		// Get command
+		commandStr, _ := s.getMCPFieldValue("containerapp_command", request)
+		var command []string
+		if commandStr != "" {
+			// Split by comma
+			command = strings.Split(commandStr, ",")
+			// Trim spaces from each command
+			for i, cmd := range command {
+				command[i] = strings.TrimSpace(cmd)
+			}
+		}
+
+		// Get args
+		argsStr, _ := s.getMCPFieldValue("containerapp_args", request)
+		var args []string
+		if argsStr != "" {
+			// Split by comma
+			args = strings.Split(argsStr, ",")
+			// Trim spaces from each arg
+			for i, arg := range args {
+				args[i] = strings.TrimSpace(arg)
+			}
+		}
+
 		// Create the request struct
 		createRequest := domain.CreateContainerAppRequest{
 			ProjectID:              projectID,
@@ -510,6 +615,14 @@ func (s *MCPServer) RegisterCreateContainerAppTool(server *server.MCPServer) {
 			IdleTimeout:            idleTimeout,
 			Timeout:                timeout,
 			CPU:                    cpu,
+			MinInstanceCount:       minInstanceCount,
+			MaxInstanceCount:       maxInstanceCount,
+			Description:            description,
+			PubliclyAccessible:     publiclyAccessible,
+			Protocol:               protocol,
+			EnvironmentVariables:   environmentVariables,
+			Command:                command,
+			Args:                   args,
 		}
 
 		// Call the service

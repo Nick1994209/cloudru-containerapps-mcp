@@ -110,7 +110,7 @@ Parameters:
 - `project_id`: Project ID in Cloud.ru (falls back to CLOUDRU_PROJECT_ID env var)
 - `containerapp_name`: Name of the Container App to retrieve
 
-#### cloudru_create_containerapp(project_id, containerapp_name, containerapp_port, containerapp_image, containerapp_auto_deployments_enabled, containerapp_auto_deployments_pattern, containerapp_privileged, containerapp_idle_timeout, containerapp_timeout, containerapp_cpu)
+#### cloudru_create_containerapp(project_id, containerapp_name, containerapp_port, containerapp_image, containerapp_auto_deployments_enabled, containerapp_auto_deployments_pattern, containerapp_privileged, containerapp_idle_timeout, containerapp_timeout, containerapp_cpu, containerapp_min_instance_count, containerapp_max_instance_count, containerapp_description, containerapp_publicly_accessible, containerapp_protocol, containerapp_environment_variables, containerapp_command, containerapp_args)
 
 Creates a new Container App in Cloud.ru.
 
@@ -125,6 +125,14 @@ Parameters:
 - `containerapp_idle_timeout`: Container idle timeout (optional, defaults to "600s")
 - `containerapp_timeout`: Request timeout (optional, defaults to "60s")
 - `containerapp_cpu`: CPU allocation (optional, defaults to "0.1", options: 0.1, 0.2, 0.5, 1)
+- `containerapp_min_instance_count`: Minimum number of instances for scaling (optional, defaults to "0")
+- `containerapp_max_instance_count`: Maximum number of instances for scaling (optional, defaults to "1")
+- `containerapp_description`: Description of the container app (optional, defaults to empty string)
+- `containerapp_publicly_accessible`: Whether the container app is publicly accessible (optional, defaults to "true")
+- `containerapp_protocol`: Protocol for the container app (optional, defaults to "http")
+- `containerapp_environment_variables`: Environment variables in format <name>='<value>';<next_name>='value2' (optional)
+- `containerapp_command`: Command to run in the container (comma-separated values) (optional)
+- `containerapp_args`: Arguments for the command (comma-separated values) (optional)
 
 #### cloudru_delete_containerapp(project_id, containerapp_name)
 
@@ -201,6 +209,10 @@ The following functions are implemented but currently disabled in the main.go fi
 2. `cloudru_get_registry_images()` - Get list of images from a Docker registry (line 56 is commented out)
 
 To enable these functions, uncomment the respective registration lines in [`cmd/cloudru-containerapps-mcp/main.go`](cmd/cloudru-containerapps-mcp/main.go).
+
+## Development Guidelines
+
+When contributing to this project, please follow our [Git Commit Guidelines](docs/GIT_COMMIT_GUIDELINES.md) for consistent commit messages in English using the Conventional Commits format.
 
 ## Documentation
 
