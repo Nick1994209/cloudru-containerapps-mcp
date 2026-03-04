@@ -33,6 +33,10 @@ All of this happens automatically through natural language commands, making comp
 ```bash
 go install github.com/Nick1994209/cloudru-containerapps-mcp/cmd/cloudru-containerapps-mcp@latest
 ```
+or 
+```bash
+go install ./cmd/cloudru-containerapps-mcp
+```
 [docs/INSTALLATION.md](docs/INSTALLATION.md)
 
 ## Add cloudru-containerapps-mcp to your IDE. For example VisualStudioCode or Cursor
@@ -133,6 +137,32 @@ Parameters:
 - `containerapp_environment_variables`: Environment variables in format <name>='<value>';<next_name>='value2' (optional)
 - `containerapp_command`: Command to run in the container (comma-separated values) (optional)
 - `containerapp_args`: Arguments for the command (comma-separated values) (optional)
+
+#### cloudru_patch_containerapp(project_id, containerapp_name, containerapp_port, containerapp_image, containerapp_auto_deployments_enabled, containerapp_auto_deployments_pattern, containerapp_privileged, containerapp_idle_timeout, containerapp_timeout, containerapp_cpu, containerapp_min_instance_count, containerapp_max_instance_count, containerapp_description, containerapp_publicly_accessible, containerapp_protocol, containerapp_environment_variables, containerapp_command, containerapp_args)
+
+Patches an existing Container App in Cloud.ru. This function gets the current state, merges it with the new values, and updates the container app.
+
+Parameters:
+- `project_id`: Project ID in Cloud.ru (falls back to CLOUDRU_PROJECT_ID env var)
+- `containerapp_name`: Name of the Container App to patch
+- `containerapp_port`: Port number for the Container App (optional, will preserve existing if not provided)
+- `containerapp_image`: Image for the Container App (optional, will preserve existing if not provided)
+- `containerapp_auto_deployments_enabled`: Enable auto deployments (optional, will preserve existing if not provided)
+- `containerapp_auto_deployments_pattern`: Auto deployments pattern (optional, will preserve existing if not provided)
+- `containerapp_privileged`: Run container in privileged mode (optional, will preserve existing if not provided)
+- `containerapp_idle_timeout`: Container idle timeout (optional, will preserve existing if not provided)
+- `containerapp_timeout`: Request timeout (optional, will preserve existing if not provided)
+- `containerapp_cpu`: CPU allocation (optional, will preserve existing if not provided)
+- `containerapp_min_instance_count`: Minimum number of instances for scaling (optional, will preserve existing if not provided)
+- `containerapp_max_instance_count`: Maximum number of instances for scaling (optional, will preserve existing if not provided)
+- `containerapp_description`: Description of the container app (optional, will preserve existing if not provided)
+- `containerapp_publicly_accessible`: Whether the container app is publicly accessible (optional, will preserve existing if not provided)
+- `containerapp_protocol`: Protocol for the container app (optional, will preserve existing if not provided)
+- `containerapp_environment_variables`: Environment variables in format <name>='<value>';<next_name>='value2' (optional, will preserve existing if not provided)
+- `containerapp_command`: Command to run in the container (comma-separated values) (optional, will preserve existing if not provided)
+- `containerapp_args`: Arguments for the command (comma-separated values) (optional, will preserve existing if not provided)
+
+Note: The `privileged` field is read-only and cannot be modified through this function.
 
 #### cloudru_delete_containerapp(project_id, containerapp_name)
 

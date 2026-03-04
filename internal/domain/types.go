@@ -38,6 +38,29 @@ type CreateContainerAppRequest struct {
 	Args                   []string `json:"args"`
 }
 
+// PatchContainerAppRequest represents a request to patch a Container App
+type PatchContainerAppRequest struct {
+	ProjectID              string                   `json:"projectId"`
+	ContainerAppName       string                   `json:"containerAppName"`
+	ContainerAppPort       int                      `json:"containerAppPort"`
+	ContainerAppImage      string                   `json:"containerAppImage"`
+	AutoDeploymentsEnabled bool                     `json:"autoDeploymentsEnabled"`
+	AutoDeploymentsPattern string                   `json:"autoDeploymentsPattern"`
+	Privileged             bool                     `json:"privileged"`
+	IdleTimeout            string                   `json:"idleTimeout"`
+	Timeout                string                   `json:"timeout"`
+	CPU                    string                   `json:"cpu"`
+	MinInstanceCount       int                      `json:"minInstanceCount"`
+	MaxInstanceCount       int                      `json:"maxInstanceCount"`
+	Description            string                   `json:"description"`
+	PubliclyAccessible     bool                     `json:"publiclyAccessible"`
+	Protocol               string                   `json:"protocol"`
+	EnvironmentVariables   []map[string]interface{} `json:"env"`
+	Command                []string                 `json:"command"`
+	Args                   []string                 `json:"args"`
+	Memory                 string                   `json:"memory"`
+}
+
 // ContainerApp represents a Cloud.ru Container App
 type ContainerApp struct {
 	ProjectID     string `json:"projectId"`

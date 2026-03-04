@@ -53,7 +53,7 @@ func LoadConfig() *Config {
 	// Load .env file if it exists
 	err := godotenv.Overload()
 	if err != nil {
-		log.Println("No .env file found, using environment variables only")
+		// log.Println("No .env file found, using environment variables only. We can omit it.")
 	}
 
 	// Check for required environment variables
@@ -61,12 +61,12 @@ func LoadConfig() *Config {
 	keySecret := os.Getenv(EnvKeySecret)
 
 	if keyID == "" || keySecret == "" {
-		log.Fatal(`CLOUDRU_KEY_ID and CLOUDRU_KEY_SECRET environment variables must be set.
-		
-To obtain access keys for authentication, please follow the instructions at:
+		log.Fatal(`CLOUDRU_KEY_ID and CLOUDRU_KEY_SECRET environment variables are required for authentication.
+
+To generate your access keys, please refer to the official guide:
 https://cloud.ru/docs/console_api/ug/topics/quickstart
 
-You will need a Key ID and Key Secret to use this service.`)
+A valid Key ID and Key Secret are necessary to access this service.`)
 	}
 
 	dir, err := os.Getwd()

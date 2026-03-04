@@ -54,6 +54,7 @@ func main() {
 	mcpServer.RegisterGetListContainerAppsTool(s)
 	mcpServer.RegisterGetContainerAppTool(s)
 	mcpServer.RegisterCreateContainerAppTool(s)
+	mcpServer.RegisterPatchContainerAppTool(s)
 	mcpServer.RegisterDeleteContainerAppTool(s)
 	mcpServer.RegisterStartContainerAppTool(s)
 	mcpServer.RegisterStopContainerAppTool(s)

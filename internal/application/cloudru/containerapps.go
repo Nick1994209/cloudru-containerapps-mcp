@@ -74,8 +74,8 @@ func (c *ContainerAppsApplication) GetListContainerApps(projectID string) ([]dom
 	return containerApps, nil
 }
 
-// GetContainerApp gets a specific ContainerApp from Cloud.ru API
-func (c *ContainerAppsApplication) GetContainerApp(projectID string, containerAppName string) (*domain.ContainerApp, error) {
+// getContainerAppRaw gets the raw response body from the ContainerApps API
+func (c *ContainerAppsApplication) getContainerAppRaw(projectID string, containerAppName string) ([]byte, error) {
 	token, err := c.authService.GetAccessToken()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access token: %w", err)
@@ -115,10 +115,21 @@ func (c *ContainerAppsApplication) GetContainerApp(projectID string, containerAp
 		return nil, fmt.Errorf("API returned empty response body with status %d", resp.StatusCode)
 	}
 
+	return body, nil
+}
+
+// GetContainerApp gets a specific ContainerApp from Cloud.ru API
+func (c *ContainerAppsApplication) GetContainerApp(projectID string, containerAppName string) (*domain.ContainerApp, error) {
+	// Get the raw response body
+	rawBody, err := c.getContainerAppRaw(projectID, containerAppName)
+	if err != nil {
+		return nil, err
+	}
+
 	// Parse response
 	var containerApp domain.ContainerApp
-	if err := json.Unmarshal(body, &containerApp); err != nil {
-		return nil, fmt.Errorf("failed to parse containerapp response: %w body length: %d body: %s", err, len(body), string(body))
+	if err := json.Unmarshal(rawBody, &containerApp); err != nil {
+		return nil, fmt.Errorf("failed to parse containerapp response: %w body length: %d body: %s", err, len(rawBody), string(rawBody))
 	}
 
 	return &containerApp, nil
@@ -501,4 +512,194 @@ func (c *ContainerAppsApplication) GetContainerAppSystemLogs(projectID string, c
 	}
 
 	return &response, nil
+}
+
+// PatchContainerApp patches a ContainerApp in Cloud.ru
+func (c *ContainerAppsApplication) PatchContainerApp(projectID string, containerAppName string, updateRequest domain.PatchContainerAppRequest) (*domain.ContainerApp, error) {
+	// First, get the current container app state
+	rawBody, err := c.getContainerAppRaw(projectID, containerAppName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current container app state: %w", err)
+	}
+
+	// Convert the raw response to a map for merging
+	currentContainerAppMap := c.containerAppToMap(rawBody)
+
+	// Map CPU to memory (similar to CreateContainerApp)
+	cpu := updateRequest.CPU
+	var memory string
+	switch cpu {
+	case "0.1":
+		memory = "256Mi"
+	case "0.2":
+		memory = "512Mi"
+	case "0.5":
+		memory = "1Gi"
+	case "1":
+		memory = "2Gi"
+	default:
+		cpu = "0.1"
+		memory = "256Mi" // default memory for unknown CPU values
+	}
+
+	// Prepare the new payload
+	newPayload := map[string]interface{}{
+		"name":      containerAppName,
+		"projectId": projectID,
+		"configuration": map[string]interface{}{
+			"ingress": map[string]interface{}{
+				"publiclyAccessible": updateRequest.PubliclyAccessible,
+			},
+			"autoDeployments": map[string]interface{}{
+				"enabled": updateRequest.AutoDeploymentsEnabled,
+				"pattern": updateRequest.AutoDeploymentsPattern,
+			},
+			// privileged is read-only and should not be modified
+		},
+		"template": map[string]interface{}{
+			"timeout":     updateRequest.Timeout,
+			"idleTimeout": updateRequest.IdleTimeout,
+			"protocol":    updateRequest.Protocol,
+			"scaling": map[string]interface{}{
+				"minInstanceCount": updateRequest.MinInstanceCount,
+				"maxInstanceCount": updateRequest.MaxInstanceCount,
+			},
+			"containers": []map[string]interface{}{
+				{
+					"name":          containerAppName,
+					"image":         updateRequest.ContainerAppImage,
+					"containerPort": updateRequest.ContainerAppPort,
+					"resources": map[string]string{
+						"cpu":    cpu,
+						"memory": memory,
+					},
+					"env": updateRequest.EnvironmentVariables,
+				},
+			},
+		},
+	}
+
+	// Add command and args to the container if provided
+	if len(updateRequest.Command) > 0 {
+		newPayload["template"].(map[string]interface{})["containers"].([]map[string]interface{})[0]["command"] = updateRequest.Command
+	}
+	if len(updateRequest.Args) > 0 {
+		newPayload["template"].(map[string]interface{})["containers"].([]map[string]interface{})[0]["args"] = updateRequest.Args
+	}
+
+	// Merge new payload with old data (deep merge)
+	mergedPayload := c.deepMerge(newPayload, currentContainerAppMap)
+
+	// Convert payload to JSON
+	jsonPayload, err := json.Marshal(mergedPayload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	// Make PATCH request to ContainerApps API
+	url := fmt.Sprintf("%s/v2/containers/%s?projectId=%s", c.cfg.API.ContainersAPI, containerAppName, projectID)
+	req, err := http.NewRequest("PATCH", url, strings.NewReader(string(jsonPayload)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	token, err := c.authService.GetAccessToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get access token: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Log the response for debugging
+	log.Printf("PatchContainerApp response - Status: %d, Body length: %d, Body: %s", resp.StatusCode, len(body), string(body))
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Check if body is empty
+	if len(body) == 0 {
+		return nil, fmt.Errorf("API returned empty response body with status %d", resp.StatusCode)
+	}
+
+	// Parse response
+	var containerApp domain.ContainerApp
+	if err := json.Unmarshal(body, &containerApp); err != nil {
+		return nil, fmt.Errorf("failed to parse containerapp response: %w body length: %d body: %s", err, len(body), string(body))
+	}
+
+	return &containerApp, nil
+}
+
+// containerAppToMap converts a ContainerApp to a map for merging
+func (c *ContainerAppsApplication) containerAppToMap(rawBody []byte) map[string]interface{} {
+	var result map[string]interface{}
+	json.Unmarshal(rawBody, &result)
+	return result
+}
+
+// deepMerge performs a deep merge of two maps
+func (c *ContainerAppsApplication) deepMerge(newData, oldData map[string]interface{}) map[string]interface{} {
+	merged := make(map[string]interface{})
+
+	// Copy old data
+	for k, v := range oldData {
+		merged[k] = v
+	}
+
+	// Merge new data (new data takes precedence, unless it's a zero value)
+	for k, v := range newData {
+		// If both values are maps, recursively merge them
+		if oldVal, exists := merged[k]; exists {
+			if oldMap, ok := oldVal.(map[string]interface{}); ok {
+				if newMap, ok := v.(map[string]interface{}); ok {
+					merged[k] = c.deepMerge(newMap, oldMap)
+					continue
+				}
+			}
+		}
+		// If new value is zero, preserve old value
+		if isZeroValue(v) {
+			continue
+		}
+		// Otherwise, new value takes precedence
+		merged[k] = v
+	}
+
+	return merged
+}
+
+// isZeroValue checks if a value is considered "zero" (empty string, 0, false)
+// This is used to determine if a new value should be ignored in favor of the old value
+// Note: nil is NOT considered a zero value here - it will be replaced with the old value
+func isZeroValue(v interface{}) bool {
+	if v == nil {
+		return false
+	}
+	switch val := v.(type) {
+	case string:
+		return val == ""
+	case int:
+		return val == 0
+	case int64:
+		return val == 0
+	case float64:
+		return val == 0
+	case bool:
+		return !val
+	default:
+		return false
+	}
 }

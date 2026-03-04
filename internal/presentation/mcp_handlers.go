@@ -129,7 +129,7 @@ func NewMCPServer(descriptionService domain.DescriptionService, dockerService do
 			"containerapp_name": {
 				envValue:     cfg.ContainerAppName,
 				description:  "Container App name (can be set via CONTAINERAPP_NAME environment variable)",
-				required:     false,
+				required:     true,
 				defaultValue: cfg.CurrentDir,
 				title:        "You can use example: " + cfg.CurrentDir,
 			},
@@ -186,7 +186,7 @@ func NewMCPServer(descriptionService domain.DescriptionService, dockerService do
 			},
 			"containerapp_description": {
 				description:  "Description of the container app",
-				defaultValue: "",
+				defaultValue: "This ContainerApps created via MCP",
 				required:     false,
 			},
 			"containerapp_publicly_accessible": {
@@ -376,7 +376,7 @@ func (s *MCPServer) RegisterDockerBuildAndPushTool(server *server.MCPServer) {
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			combined := fmt.Sprintf("Run Docker build command:\n%s\n and then run docker push command:\n%s", buildCmd, pushCmd)
+			combined := fmt.Sprintf("Run Docker build command:\n'%s'\n and then run docker push command:\n'%s'. IMPORTANT! Use platform for building image.", buildCmd, pushCmd)
 			return mcp.NewToolResultText(combined), nil
 		}
 
@@ -457,6 +457,210 @@ func (s *MCPServer) RegisterGetContainerAppTool(server *server.MCPServer) {
 		}
 
 		return mcp.NewToolResultText(string(result)), nil
+	})
+}
+
+// RegisterPatchContainerAppTool registers the patch container app tool with the MCP server
+func (s *MCPServer) RegisterPatchContainerAppTool(server *server.MCPServer) {
+	// Prepare tool options including description and fields
+	toolOptions := s.getMCPFieldsOptions(
+		"Patch a Container App in Cloud.ru. This will get the current state, merge with new values, and update the container app.",
+		"project_id",
+		"containerapp_name",
+		"containerapp_port",
+		"containerapp_image",
+		"containerapp_auto_deployments_enabled",
+		"containerapp_auto_deployments_pattern",
+		"containerapp_privileged",
+		"containerapp_idle_timeout",
+		"containerapp_timeout",
+		"containerapp_cpu",
+		"containerapp_min_instance_count",
+		"containerapp_max_instance_count",
+		"containerapp_description",
+		"containerapp_publicly_accessible",
+		"containerapp_protocol",
+		"containerapp_environment_variables",
+		"containerapp_command",
+		"containerapp_args",
+	)
+	patchContainerAppTool := mcp.NewTool("cloudru_patch_containerapp", toolOptions...)
+
+	server.AddTool(patchContainerAppTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Get project ID
+		projectID, err := s.getMCPFieldValue("project_id", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		// Get container app name
+		containerAppName, err := s.getMCPFieldValue("containerapp_name", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		// Get container app port
+		containerAppPortStr, err := s.getMCPFieldValue("containerapp_port", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		// Convert port to integer
+		var containerAppPort int
+		fmt.Sscanf(containerAppPortStr, "%d", &containerAppPort)
+
+		// Get container app image
+		containerAppImage, err := s.getMCPFieldValue("containerapp_image", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		// Get auto deployments enabled
+		autoDeploymentsEnabled, err := s.getMCPBooleanFieldValue("containerapp_auto_deployments_enabled", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		// Get auto deployments pattern
+		autoDeploymentsPattern, _ := s.getMCPFieldValue("containerapp_auto_deployments_pattern", request)
+
+		// Get privileged
+		privileged, err := s.getMCPBooleanFieldValue("containerapp_privileged", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		// Get idle timeout
+		idleTimeout, _ := s.getMCPFieldValue("containerapp_idle_timeout", request)
+		if idleTimeout == "" {
+			idleTimeout = "600s"
+		}
+
+		// Get timeout
+		timeout, _ := s.getMCPFieldValue("containerapp_timeout", request)
+		if timeout == "" {
+			timeout = "60s"
+		}
+
+		// Get CPU
+		cpu, _ := s.getMCPFieldValue("containerapp_cpu", request)
+		if cpu == "" {
+			cpu = "0.1"
+		}
+
+		// Get min instance count
+		minInstanceCountStr, _ := s.getMCPFieldValue("containerapp_min_instance_count", request)
+		var minInstanceCount int
+		if minInstanceCountStr != "" {
+			fmt.Sscanf(minInstanceCountStr, "%d", &minInstanceCount)
+		}
+
+		// Get max instance count
+		maxInstanceCountStr, _ := s.getMCPFieldValue("containerapp_max_instance_count", request)
+		var maxInstanceCount int
+		if maxInstanceCountStr != "" {
+			fmt.Sscanf(maxInstanceCountStr, "%d", &maxInstanceCount)
+		}
+
+		// Get description
+		description, _ := s.getMCPFieldValue("containerapp_description", request)
+
+		// Get publicly accessible
+		publiclyAccessible, err := s.getMCPBooleanFieldValue("containerapp_publicly_accessible", request)
+		if err != nil {
+			publiclyAccessible = true // default value
+		}
+
+		// Get protocol
+		protocol, _ := s.getMCPFieldValue("containerapp_protocol", request)
+		if protocol == "" {
+			protocol = "http_1"
+		}
+
+		// Get environment variables
+		environmentVariablesStr, _ := s.getMCPFieldValue("containerapp_environment_variables", request)
+		var environmentVariables []map[string]interface{}
+		if environmentVariablesStr != "" {
+			// Parse environment variables from format <name>='<value>';<next_name>='value2'
+			variables := strings.Split(environmentVariablesStr, ";")
+			for _, variable := range variables {
+				// Split by first equals sign
+				parts := strings.SplitN(variable, "=", 2)
+				if len(parts) == 2 {
+					name := strings.TrimSpace(parts[0])
+					value := strings.TrimSpace(parts[1])
+					// Remove quotes if present
+					if strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") {
+						value = value[1 : len(value)-1]
+					}
+					environmentVariables = append(environmentVariables, map[string]interface{}{
+						"name":  name,
+						"value": value,
+						"type":  "plain",
+					})
+				}
+			}
+		}
+
+		// Get command
+		commandStr, _ := s.getMCPFieldValue("containerapp_command", request)
+		var command []string
+		if commandStr != "" {
+			// Split by comma
+			command = strings.Split(commandStr, ",")
+			// Trim spaces from each command
+			for i, cmd := range command {
+				command[i] = strings.TrimSpace(cmd)
+			}
+		}
+
+		// Get args
+		argsStr, _ := s.getMCPFieldValue("containerapp_args", request)
+		var args []string
+		if argsStr != "" {
+			// Split by comma
+			args = strings.Split(argsStr, ",")
+			// Trim spaces from each arg
+			for i, arg := range args {
+				args[i] = strings.TrimSpace(arg)
+			}
+		}
+
+		// Create the patch request
+		patchRequest := domain.PatchContainerAppRequest{
+			ProjectID:              projectID,
+			ContainerAppName:       containerAppName,
+			ContainerAppPort:       containerAppPort,
+			ContainerAppImage:      containerAppImage,
+			AutoDeploymentsEnabled: autoDeploymentsEnabled,
+			AutoDeploymentsPattern: autoDeploymentsPattern,
+			Privileged:             privileged,
+			IdleTimeout:            idleTimeout,
+			Timeout:                timeout,
+			CPU:                    cpu,
+			MinInstanceCount:       minInstanceCount,
+			MaxInstanceCount:       maxInstanceCount,
+			Description:            description,
+			PubliclyAccessible:     publiclyAccessible,
+			Protocol:               protocol,
+			EnvironmentVariables:   environmentVariables,
+			Command:                command,
+			Args:                   args,
+		}
+
+		// Call the service
+		containerApp, err := s.containerAppsService.PatchContainerApp(projectID, containerAppName, patchRequest)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		// Convert to JSON for output
+		result, err := json.MarshalIndent(containerApp, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to format result: %v", err)), nil
+		}
+
+		return mcp.NewToolResultText(fmt.Sprintf("Successfully patched Container App: %s\n%s", containerAppName, string(result))), nil
 	})
 }
 

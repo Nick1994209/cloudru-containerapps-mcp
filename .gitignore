@@ -39,6 +39,4 @@ Thumbs.db
 test-mcp
 
 # Docker related
-.dockerignore
-.kilocode
 .env
