@@ -22,8 +22,8 @@ type AuthService interface {
 type ContainerAppsService interface {
 	GetListContainerApps(projectID string) ([]ContainerApp, error)
 	GetContainerApp(projectID string, containerAppName string) (*ContainerApp, error)
-	CreateContainerApp(request CreateContainerAppRequest) (*ContainerApp, error)
-	PatchContainerApp(projectID string, containerAppName string, request PatchContainerAppRequest) (*ContainerApp, error)
+	CreateContainerApp(request CreateContainerAppRequest) (*Operation, error)
+	PatchContainerApp(projectID string, containerAppName string, request PatchContainerAppRequest) (*Operation, error)
 	DeleteContainerApp(projectID string, containerAppName string) error
 	StartContainerApp(projectID string, containerAppName string) error
 	StopContainerApp(projectID string, containerAppName string) error

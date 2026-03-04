@@ -40,25 +40,24 @@ type CreateContainerAppRequest struct {
 
 // PatchContainerAppRequest represents a request to patch a Container App
 type PatchContainerAppRequest struct {
-	ProjectID              string                   `json:"projectId"`
-	ContainerAppName       string                   `json:"containerAppName"`
-	ContainerAppPort       int                      `json:"containerAppPort"`
-	ContainerAppImage      string                   `json:"containerAppImage"`
-	AutoDeploymentsEnabled bool                     `json:"autoDeploymentsEnabled"`
-	AutoDeploymentsPattern string                   `json:"autoDeploymentsPattern"`
-	Privileged             bool                     `json:"privileged"`
-	IdleTimeout            string                   `json:"idleTimeout"`
-	Timeout                string                   `json:"timeout"`
-	CPU                    string                   `json:"cpu"`
-	MinInstanceCount       int                      `json:"minInstanceCount"`
-	MaxInstanceCount       int                      `json:"maxInstanceCount"`
-	Description            string                   `json:"description"`
-	PubliclyAccessible     bool                     `json:"publiclyAccessible"`
-	Protocol               string                   `json:"protocol"`
-	EnvironmentVariables   []map[string]interface{} `json:"env"`
-	Command                []string                 `json:"command"`
-	Args                   []string                 `json:"args"`
-	Memory                 string                   `json:"memory"`
+	ProjectID              string   `json:"projectId"`
+	ContainerAppName       string   `json:"containerAppName"`
+	ContainerAppPort       *int     `json:"containerAppPort"`
+	ContainerAppImage      *string  `json:"containerAppImage"`
+	AutoDeploymentsEnabled *bool    `json:"autoDeploymentsEnabled"`
+	AutoDeploymentsPattern *string  `json:"autoDeploymentsPattern"`
+	Privileged             *bool    `json:"privileged"`
+	IdleTimeout            *string  `json:"idleTimeout"`
+	Timeout                *string  `json:"timeout"`
+	CPU                    *string  `json:"cpu"`
+	MinInstanceCount       *int     `json:"minInstanceCount"`
+	MaxInstanceCount       *int     `json:"maxInstanceCount"`
+	Description            *string  `json:"description"`
+	PubliclyAccessible     *bool    `json:"publiclyAccessible"`
+	Protocol               *string  `json:"protocol"`
+	EnvironmentVariables   *string  `json:"environmentVariables"`
+	Command                []string `json:"command"`
+	Args                   []string `json:"args"`
 }
 
 // ContainerApp represents a Cloud.ru Container App
@@ -183,6 +182,14 @@ type RegistryImage struct {
 	CreatedAt string `json:"createdAt"`
 	Size      int64  `json:"size"`
 	MediaType string `json:"mediaType"`
+}
+
+// Operation represents a long-running operation
+type Operation struct {
+	ResourceName string `json:"resourceName"`
+	ResourceID   string `json:"resourceId"`
+	Description  string `json:"description"`
+	Done         bool   `json:"done"`
 }
 
 // RegistryImagesResponse represents the response from registry images API

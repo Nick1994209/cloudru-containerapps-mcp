@@ -282,7 +282,10 @@ func (s *MCPServer) getMCPFieldValue(field string, request mcp.CallToolRequest) 
 }
 
 func (s *MCPServer) getMCPBooleanFieldValue(field string, request mcp.CallToolRequest) (bool, error) {
-	fieldValueStr, _ := s.getMCPFieldValue(field, request)
+	fieldValueStr, err := s.getMCPFieldValue(field, request)
+	if err != nil {
+		return false, err
+	}
 
 	if fieldValueStr == "true" || fieldValueStr == "1" {
 		return true, nil
@@ -522,7 +525,10 @@ func (s *MCPServer) RegisterPatchContainerAppTool(server *server.MCPServer) {
 		}
 
 		// Get auto deployments pattern
-		autoDeploymentsPattern, _ := s.getMCPFieldValue("containerapp_auto_deployments_pattern", request)
+		autoDeploymentsPattern, err := s.getMCPFieldValue("containerapp_auto_deployments_pattern", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
 
 		// Get privileged
 		privileged, err := s.getMCPBooleanFieldValue("containerapp_privileged", request)
@@ -531,79 +537,72 @@ func (s *MCPServer) RegisterPatchContainerAppTool(server *server.MCPServer) {
 		}
 
 		// Get idle timeout
-		idleTimeout, _ := s.getMCPFieldValue("containerapp_idle_timeout", request)
-		if idleTimeout == "" {
-			idleTimeout = "600s"
+		idleTimeout, err := s.getMCPFieldValue("containerapp_idle_timeout", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Get timeout
-		timeout, _ := s.getMCPFieldValue("containerapp_timeout", request)
-		if timeout == "" {
-			timeout = "60s"
+		timeout, err := s.getMCPFieldValue("containerapp_timeout", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Get CPU
-		cpu, _ := s.getMCPFieldValue("containerapp_cpu", request)
-		if cpu == "" {
-			cpu = "0.1"
+		cpu, err := s.getMCPFieldValue("containerapp_cpu", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Get min instance count
-		minInstanceCountStr, _ := s.getMCPFieldValue("containerapp_min_instance_count", request)
+		minInstanceCountStr, err := s.getMCPFieldValue("containerapp_min_instance_count", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
 		var minInstanceCount int
 		if minInstanceCountStr != "" {
 			fmt.Sscanf(minInstanceCountStr, "%d", &minInstanceCount)
 		}
 
 		// Get max instance count
-		maxInstanceCountStr, _ := s.getMCPFieldValue("containerapp_max_instance_count", request)
+		maxInstanceCountStr, err := s.getMCPFieldValue("containerapp_max_instance_count", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
 		var maxInstanceCount int
 		if maxInstanceCountStr != "" {
 			fmt.Sscanf(maxInstanceCountStr, "%d", &maxInstanceCount)
 		}
 
 		// Get description
-		description, _ := s.getMCPFieldValue("containerapp_description", request)
+		description, err := s.getMCPFieldValue("containerapp_description", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
 
 		// Get publicly accessible
 		publiclyAccessible, err := s.getMCPBooleanFieldValue("containerapp_publicly_accessible", request)
 		if err != nil {
-			publiclyAccessible = true // default value
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Get protocol
-		protocol, _ := s.getMCPFieldValue("containerapp_protocol", request)
-		if protocol == "" {
-			protocol = "http_1"
+		protocol, err := s.getMCPFieldValue("containerapp_protocol", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Get environment variables
-		environmentVariablesStr, _ := s.getMCPFieldValue("containerapp_environment_variables", request)
-		var environmentVariables []map[string]interface{}
-		if environmentVariablesStr != "" {
-			// Parse environment variables from format <name>='<value>';<next_name>='value2'
-			variables := strings.Split(environmentVariablesStr, ";")
-			for _, variable := range variables {
-				// Split by first equals sign
-				parts := strings.SplitN(variable, "=", 2)
-				if len(parts) == 2 {
-					name := strings.TrimSpace(parts[0])
-					value := strings.TrimSpace(parts[1])
-					// Remove quotes if present
-					if strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") {
-						value = value[1 : len(value)-1]
-					}
-					environmentVariables = append(environmentVariables, map[string]interface{}{
-						"name":  name,
-						"value": value,
-						"type":  "plain",
-					})
-				}
-			}
+		environmentVariables, err := s.getMCPFieldValue("containerapp_environment_variables", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Get command
-		commandStr, _ := s.getMCPFieldValue("containerapp_command", request)
+		commandStr, err := s.getMCPFieldValue("containerapp_command", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
 		var command []string
 		if commandStr != "" {
 			// Split by comma
@@ -615,7 +614,10 @@ func (s *MCPServer) RegisterPatchContainerAppTool(server *server.MCPServer) {
 		}
 
 		// Get args
-		argsStr, _ := s.getMCPFieldValue("containerapp_args", request)
+		argsStr, err := s.getMCPFieldValue("containerapp_args", request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
 		var args []string
 		if argsStr != "" {
 			// Split by comma
@@ -628,34 +630,114 @@ func (s *MCPServer) RegisterPatchContainerAppTool(server *server.MCPServer) {
 
 		// Create the patch request
 		patchRequest := domain.PatchContainerAppRequest{
-			ProjectID:              projectID,
-			ContainerAppName:       containerAppName,
-			ContainerAppPort:       containerAppPort,
-			ContainerAppImage:      containerAppImage,
-			AutoDeploymentsEnabled: autoDeploymentsEnabled,
-			AutoDeploymentsPattern: autoDeploymentsPattern,
-			Privileged:             privileged,
-			IdleTimeout:            idleTimeout,
-			Timeout:                timeout,
-			CPU:                    cpu,
-			MinInstanceCount:       minInstanceCount,
-			MaxInstanceCount:       maxInstanceCount,
-			Description:            description,
-			PubliclyAccessible:     publiclyAccessible,
-			Protocol:               protocol,
-			EnvironmentVariables:   environmentVariables,
-			Command:                command,
-			Args:                   args,
+			ProjectID:        projectID,
+			ContainerAppName: containerAppName,
+			ContainerAppPort: func() *int {
+				if checkRequestHasKey(request, "containerapp_port") {
+					return &containerAppPort
+				}
+				return nil
+			}(),
+			ContainerAppImage: func() *string {
+				if checkRequestHasKey(request, "containerapp_image") {
+					return &containerAppImage
+				}
+				return nil
+			}(),
+			AutoDeploymentsEnabled: func() *bool {
+				if checkRequestHasKey(request, "containerapp_auto_deployments_enabled") {
+					return &autoDeploymentsEnabled
+				}
+				return nil
+			}(),
+			AutoDeploymentsPattern: func() *string {
+				if checkRequestHasKey(request, "containerapp_auto_deployments_pattern") {
+					return &autoDeploymentsPattern
+				}
+				return nil
+			}(),
+			Privileged: func() *bool {
+				if checkRequestHasKey(request, "containerapp_privileged") {
+					return &privileged
+				}
+				return nil
+			}(),
+			IdleTimeout: func() *string {
+				if checkRequestHasKey(request, "containerapp_idle_timeout") {
+					return &idleTimeout
+				}
+				return nil
+			}(),
+			Timeout: func() *string {
+				if checkRequestHasKey(request, "containerapp_timeout") {
+					return &timeout
+				}
+				return nil
+			}(),
+			CPU: func() *string {
+				if checkRequestHasKey(request, "containerapp_cpu") {
+					return &cpu
+				}
+				return nil
+			}(),
+			MinInstanceCount: func() *int {
+				if checkRequestHasKey(request, "containerapp_min_instance_count") {
+					return &minInstanceCount
+				}
+				return nil
+			}(),
+			MaxInstanceCount: func() *int {
+				if checkRequestHasKey(request, "containerapp_max_instance_count") {
+					return &maxInstanceCount
+				}
+				return nil
+			}(),
+			Description: func() *string {
+				if checkRequestHasKey(request, "containerapp_description") {
+					return &description
+				}
+				return nil
+			}(),
+			PubliclyAccessible: func() *bool {
+				if checkRequestHasKey(request, "containerapp_publicly_accessible") {
+					return &publiclyAccessible
+				}
+				return nil
+			}(),
+			Protocol: func() *string {
+				if checkRequestHasKey(request, "containerapp_protocol") {
+					return &protocol
+				}
+				return nil
+			}(),
+			EnvironmentVariables: func() *string {
+				if checkRequestHasKey(request, "containerapp_environment_variables") {
+					return &environmentVariables
+				}
+				return nil
+			}(),
+			Command: func() []string {
+				if checkRequestHasKey(request, "containerapp_command") {
+					return command
+				}
+				return nil
+			}(),
+			Args: func() []string {
+				if checkRequestHasKey(request, "containerapp_args") {
+					return args
+				}
+				return nil
+			}(),
 		}
 
 		// Call the service
-		containerApp, err := s.containerAppsService.PatchContainerApp(projectID, containerAppName, patchRequest)
+		operation, err := s.containerAppsService.PatchContainerApp(projectID, containerAppName, patchRequest)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Convert to JSON for output
-		result, err := json.MarshalIndent(containerApp, "", "  ")
+		result, err := json.MarshalIndent(operation, "", "  ")
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to format result: %v", err)), nil
 		}
@@ -831,13 +913,13 @@ func (s *MCPServer) RegisterCreateContainerAppTool(server *server.MCPServer) {
 		}
 
 		// Call the service
-		containerApp, err := s.containerAppsService.CreateContainerApp(createRequest)
+		operation, err := s.containerAppsService.CreateContainerApp(createRequest)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Convert to JSON for output
-		result, err := json.MarshalIndent(containerApp, "", "  ")
+		result, err := json.MarshalIndent(operation, "", "  ")
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to format result: %v", err)), nil
 		}
@@ -1145,4 +1227,11 @@ func (s *MCPServer) RegisterGetRegistryImagesTool(server *server.MCPServer) {
 
 		return mcp.NewToolResultText(string(result)), nil
 	})
+}
+
+// GetString returns a string argument by key, or the default value if not found
+func checkRequestHasKey(r mcp.CallToolRequest, key string) bool {
+	args := r.GetArguments()
+	_, ok := args[key]
+	return ok
 }

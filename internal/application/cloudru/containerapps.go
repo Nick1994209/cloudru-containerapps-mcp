@@ -135,8 +135,55 @@ func (c *ContainerAppsApplication) GetContainerApp(projectID string, containerAp
 	return &containerApp, nil
 }
 
+// parseEnvironmentVariables parses environment variables from format <name>='<value>';<next_name>='value2'
+func (c *ContainerAppsApplication) parseEnvironmentVariables(environmentVariables string) []map[string]interface{} {
+	var envVars []map[string]interface{}
+	if environmentVariables != "" {
+		// Split by semicolon
+		variables := strings.Split(environmentVariables, ";")
+		for _, variable := range variables {
+			// Split by first equals sign
+			parts := strings.SplitN(variable, "=", 2)
+			if len(parts) == 2 {
+				name := strings.TrimSpace(parts[0])
+				value := strings.TrimSpace(parts[1])
+				// Remove quotes if present
+				if strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") {
+					value = value[1 : len(value)-1]
+				}
+				envVars = append(envVars, map[string]interface{}{
+					"name":  name,
+					"value": value,
+				})
+			}
+		}
+	}
+	return envVars
+}
+
+// parseCPU maps CPU allocation to memory allocation
+func (c *ContainerAppsApplication) parseCPU(cpu string) (string, string) {
+	var memory string
+	switch cpu {
+	case "0.1":
+		memory = "256Mi"
+	case "0.2":
+		memory = "512Mi"
+	case "0.5":
+		memory = "1Gi"
+	case "1":
+		memory = "2Gi"
+	default:
+		// Default to 0.1 CPU and 256Mi memory for unknown values
+		cpu = "0.1"
+		memory = "256Mi"
+	}
+
+	return cpu, memory
+}
+
 // CreateContainerApp creates a new ContainerApp in Cloud.ru
-func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateContainerAppRequest) (*domain.ContainerApp, error) {
+func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateContainerAppRequest) (*domain.Operation, error) {
 	projectID := request.ProjectID
 	containerAppName := request.ContainerAppName
 	containerAppPort := request.ContainerAppPort
@@ -174,45 +221,11 @@ func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateConta
 		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
 
-	// Map CPU to memory
-	var memory string
-	switch cpu {
-	case "0.1":
-		memory = "256Mi"
-	case "0.2":
-		memory = "512Mi"
-	case "0.5":
-		memory = "1Gi"
-	case "1":
-		memory = "2Gi"
-	default:
-		cpu = "0.1"
-		memory = "256Mi" // default memory for unknown CPU values
-	}
+	// Parse environment variables
+	envVars := c.parseEnvironmentVariables(environmentVariables)
 
-	// Parse environment variables from format <name>='<value>';<next_name>='value2'
-	var envVars []map[string]interface{}
-	if environmentVariables != "" {
-		// Split by semicolon
-		variables := strings.Split(environmentVariables, ";")
-		for _, variable := range variables {
-			// Split by first equals sign
-			parts := strings.SplitN(variable, "=", 2)
-			if len(parts) == 2 {
-				name := strings.TrimSpace(parts[0])
-				value := strings.TrimSpace(parts[1])
-				// Remove quotes if present
-				if strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") {
-					value = value[1 : len(value)-1]
-				}
-				envVars = append(envVars, map[string]interface{}{
-					"name":  name,
-					"value": value,
-					"type":  "plain",
-				})
-			}
-		}
-	}
+	// Map CPU to memory
+	cpu, memory := c.parseCPU(cpu)
 
 	// Prepare the request payload
 	payload := map[string]interface{}{
@@ -306,7 +319,15 @@ func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateConta
 		return nil, fmt.Errorf("failed to parse containerapp response: %w body length: %d body: %s", err, len(body), string(body))
 	}
 
-	return &containerApp, nil
+	// Create and return an Operation object
+	operation := &domain.Operation{
+		ResourceName: containerApp.Name,
+		ResourceID:   containerApp.ID,
+		Description:  fmt.Sprintf("Container App %s created successfully", containerApp.Name),
+		Done:         true,
+	}
+
+	return operation, nil
 }
 
 // DeleteContainerApp deletes a ContainerApp from Cloud.ru
@@ -515,66 +536,67 @@ func (c *ContainerAppsApplication) GetContainerAppSystemLogs(projectID string, c
 }
 
 // PatchContainerApp patches a ContainerApp in Cloud.ru
-func (c *ContainerAppsApplication) PatchContainerApp(projectID string, containerAppName string, updateRequest domain.PatchContainerAppRequest) (*domain.ContainerApp, error) {
+func (c *ContainerAppsApplication) PatchContainerApp(projectID string, containerAppName string, updateRequest domain.PatchContainerAppRequest) (*domain.Operation, error) {
 	// First, get the current container app state
 	rawBody, err := c.getContainerAppRaw(projectID, containerAppName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current container app state: %w", err)
 	}
 
-	// Convert the raw response to a map for merging
-	currentContainerAppMap := c.containerAppToMap(rawBody)
-
-	// Map CPU to memory (similar to CreateContainerApp)
-	cpu := updateRequest.CPU
-	var memory string
-	switch cpu {
-	case "0.1":
-		memory = "256Mi"
-	case "0.2":
-		memory = "512Mi"
-	case "0.5":
-		memory = "1Gi"
-	case "1":
-		memory = "2Gi"
-	default:
-		cpu = "0.1"
-		memory = "256Mi" // default memory for unknown CPU values
+	// Parse the current state
+	var currentContainerApp domain.ContainerApp
+	if err := json.Unmarshal(rawBody, &currentContainerApp); err != nil {
+		return nil, fmt.Errorf("failed to parse current container app state: %w", err)
 	}
 
-	// Prepare the new payload
-	newPayload := map[string]interface{}{
-		"name":      containerAppName,
-		"projectId": projectID,
-		"configuration": map[string]interface{}{
-			"ingress": map[string]interface{}{
-				"publiclyAccessible": updateRequest.PubliclyAccessible,
-			},
-			"autoDeployments": map[string]interface{}{
-				"enabled": updateRequest.AutoDeploymentsEnabled,
-				"pattern": updateRequest.AutoDeploymentsPattern,
-			},
-			// privileged is read-only and should not be modified
+	// Use environment variables directly (already parsed)
+	envVars := c.parseEnvironmentVariables(*updateRequest.EnvironmentVariables)
+
+	// Map CPU to memory
+	var cpu, memory *string
+	if updateRequest.CPU == nil || *updateRequest.CPU == "" {
+		cpu = nil
+		memory = nil
+	} else {
+		cpuVal, memoryVal := c.parseCPU(*updateRequest.CPU)
+		cpu = &cpuVal
+		memory = &memoryVal
+	}
+
+	// Prepare the new payload - only include fields that are being updated
+	newPayload := map[string]interface{}{}
+
+	// Add description if provided
+	if updateRequest.Description != nil {
+		newPayload["description"] = *updateRequest.Description
+	}
+
+	newPayload["configuration"] = map[string]interface{}{
+		"ingress": map[string]interface{}{
+			"publiclyAccessible": updateRequest.PubliclyAccessible,
 		},
-		"template": map[string]interface{}{
-			"timeout":     updateRequest.Timeout,
-			"idleTimeout": updateRequest.IdleTimeout,
-			"protocol":    updateRequest.Protocol,
-			"scaling": map[string]interface{}{
-				"minInstanceCount": updateRequest.MinInstanceCount,
-				"maxInstanceCount": updateRequest.MaxInstanceCount,
-			},
-			"containers": []map[string]interface{}{
-				{
-					"name":          containerAppName,
-					"image":         updateRequest.ContainerAppImage,
-					"containerPort": updateRequest.ContainerAppPort,
-					"resources": map[string]string{
-						"cpu":    cpu,
-						"memory": memory,
-					},
-					"env": updateRequest.EnvironmentVariables,
+		"autoDeployments": map[string]interface{}{
+			"enabled": updateRequest.AutoDeploymentsEnabled,
+			"pattern": updateRequest.AutoDeploymentsPattern,
+		},
+	}
+	newPayload["template"] = map[string]interface{}{
+		"timeout":     updateRequest.Timeout,
+		"idleTimeout": updateRequest.IdleTimeout,
+		"protocol":    updateRequest.Protocol,
+		"scaling": map[string]interface{}{
+			"minInstanceCount": updateRequest.MinInstanceCount,
+			"maxInstanceCount": updateRequest.MaxInstanceCount,
+		},
+		"containers": []map[string]interface{}{
+			{
+				"image":         updateRequest.ContainerAppImage,
+				"containerPort": updateRequest.ContainerAppPort,
+				"resources": map[string]string{
+					"cpu":    *cpu,
+					"memory": *memory,
 				},
+				"env": envVars,
 			},
 		},
 	}
@@ -587,8 +609,18 @@ func (c *ContainerAppsApplication) PatchContainerApp(projectID string, container
 		newPayload["template"].(map[string]interface{})["containers"].([]map[string]interface{})[0]["args"] = updateRequest.Args
 	}
 
+	// Convert current container app to map for merging
+	currentContainerAppMap, err := json.Marshal(currentContainerApp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal current container app: %w", err)
+	}
+	var currentContainerAppMapInterface map[string]interface{}
+	if err := json.Unmarshal(currentContainerAppMap, &currentContainerAppMapInterface); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal current container app: %w", err)
+	}
+
 	// Merge new payload with old data (deep merge)
-	mergedPayload := c.deepMerge(newPayload, currentContainerAppMap)
+	mergedPayload := c.deepMerge(newPayload, currentContainerAppMapInterface)
 
 	// Convert payload to JSON
 	jsonPayload, err := json.Marshal(mergedPayload)
@@ -640,14 +672,15 @@ func (c *ContainerAppsApplication) PatchContainerApp(projectID string, container
 		return nil, fmt.Errorf("failed to parse containerapp response: %w body length: %d body: %s", err, len(body), string(body))
 	}
 
-	return &containerApp, nil
-}
+	// Create and return an Operation object
+	operation := &domain.Operation{
+		ResourceName: containerApp.Name,
+		ResourceID:   containerApp.ID,
+		Description:  fmt.Sprintf("Container App %s patched successfully", containerApp.Name),
+		Done:         true,
+	}
 
-// containerAppToMap converts a ContainerApp to a map for merging
-func (c *ContainerAppsApplication) containerAppToMap(rawBody []byte) map[string]interface{} {
-	var result map[string]interface{}
-	json.Unmarshal(rawBody, &result)
-	return result
+	return operation, nil
 }
 
 // deepMerge performs a deep merge of two maps
@@ -683,7 +716,7 @@ func (c *ContainerAppsApplication) deepMerge(newData, oldData map[string]interfa
 
 // isZeroValue checks if a value is considered "zero" (empty string, 0, false)
 // This is used to determine if a new value should be ignored in favor of the old value
-// Note: nil is NOT considered a zero value here - it will be replaced with the old value
+// Note: nil is NOT considered a zero value here - it will be preserved
 func isZeroValue(v interface{}) bool {
 	if v == nil {
 		return false
