@@ -1,24 +1,32 @@
-# This file is used to group timeline events in the MCP server
-# It helps organize related events and operations for better visualization
+# Files to track with Grouped Timeline
+# Add patterns for files you want included in the Grouped Timeline
+# Use ! to exclude files/folders (anti-patterns)
+# After changing this file, refresh the Grouped Timeline view to see the updates
 
-# Group 1: Authentication and Login
-cloudru_docker_login
+# Track all files by default (commented out because it might be slow for large projects)
+# *
+# */**
 
-# Group 2: Image Management
-cloudru_docker_build_and_push
-cloudru_get_registry_images
+# Common exclusions
+!node_modules/**
+!dist/**
+!out/**
+!build/**
+!.git/**
+!coverage/**
+!.next/**
+!.cache/**
+!tmp/**
+!temp/**
 
-# Group 3: Container App Management
-cloudru_create_containerapp
-cloudru_get_list_containerapps
-cloudru_get_containerapp
-cloudru_patch_containerapp
-cloudru_delete_containerapp
-cloudru_start_containerapp
-cloudru_stop_containerapp
-cloudru_get_containerapp_logs
-cloudru_get_containerapp_system_logs
-
-# Group 4: Docker Registry Management
-cloudru_create_docker_registry
-cloudru_get_list_docker_registries
+# Exclude common large/binary files
+!*/**.exe
+!*/**.dll
+!*/**.zip
+!*/**.tar
+!*/**.gz
+!*/**.rar
+!*/**.7z
+!*/**.iso
+!*/**.bin
+!*/**.log

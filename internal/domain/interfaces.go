@@ -24,9 +24,9 @@ type ContainerAppsService interface {
 	GetContainerApp(projectID string, containerAppName string) (*ContainerApp, error)
 	CreateContainerApp(request CreateContainerAppRequest) (*Operation, error)
 	PatchContainerApp(projectID string, containerAppName string, request PatchContainerAppRequest) (*Operation, error)
-	DeleteContainerApp(projectID string, containerAppName string) error
-	StartContainerApp(projectID string, containerAppName string) error
-	StopContainerApp(projectID string, containerAppName string) error
+	DeleteContainerApp(projectID string, containerAppName string) (*Operation, error)
+	StartContainerApp(projectID string, containerAppName string) (*Operation, error)
+	StopContainerApp(projectID string, containerAppName string) (*Operation, error)
 	GetContainerAppLogs(projectID string, containerAppName string) (*ContainerAppLogs, error)
 	GetContainerAppSystemLogs(projectID string, containerAppName string) (*ContainerAppSystemLogs, error)
 }

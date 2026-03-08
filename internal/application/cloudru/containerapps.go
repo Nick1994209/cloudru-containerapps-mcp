@@ -169,10 +169,12 @@ func (c *ContainerAppsApplication) parseCPU(cpu string) (string, string) {
 		memory = "256Mi"
 	case "0.2":
 		memory = "512Mi"
+	case "0.3":
+		memory = "768Mi"
 	case "0.5":
-		memory = "1Gi"
+		memory = "1024Mi"
 	case "1":
-		memory = "2Gi"
+		memory = "4096Mi"
 	default:
 		// Default to 0.1 CPU and 256Mi memory for unknown values
 		cpu = "0.1"
@@ -313,28 +315,20 @@ func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateConta
 		return nil, fmt.Errorf("API returned empty response body with status %d", resp.StatusCode)
 	}
 
-	// Parse response
-	var containerApp domain.ContainerApp
-	if err := json.Unmarshal(body, &containerApp); err != nil {
-		return nil, fmt.Errorf("failed to parse containerapp response: %w body length: %d body: %s", err, len(body), string(body))
+	// Create and return an Operation object by parsing the response body
+	var response domain.Operation
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse container app operation response: %w body length: %d body: %s", err, len(body), string(body))
 	}
 
-	// Create and return an Operation object
-	operation := &domain.Operation{
-		ResourceName: containerApp.Name,
-		ResourceID:   containerApp.ID,
-		Description:  fmt.Sprintf("Container App %s created successfully", containerApp.Name),
-		Done:         true,
-	}
-
-	return operation, nil
+	return &response, nil
 }
 
 // DeleteContainerApp deletes a ContainerApp from Cloud.ru
-func (c *ContainerAppsApplication) DeleteContainerApp(projectID string, containerAppName string) error {
+func (c *ContainerAppsApplication) DeleteContainerApp(projectID string, containerAppName string) (*domain.Operation, error) {
 	token, err := c.authService.GetAccessToken()
 	if err != nil {
-		return fmt.Errorf("failed to get access token: %w", err)
+		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
 
 	// Make DELETE request to ContainerApps API
@@ -342,7 +336,7 @@ func (c *ContainerAppsApplication) DeleteContainerApp(projectID string, containe
 	url := fmt.Sprintf("%s/v2/containers/%s?projectId=%s", c.cfg.API.ContainersAPI, containerAppName, projectID)
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -351,29 +345,35 @@ func (c *ContainerAppsApplication) DeleteContainerApp(projectID string, containe
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to make request: %w", err)
+		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	// According to the API documentation, a successful deletion should return 204 No Content
 	// but we'll accept 200 OK as well
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	return nil
+	// Create and return an Operation object by parsing the response body
+	var response domain.Operation
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse container app operation response: %w body length: %d body: %s", err, len(body), string(body))
+	}
+
+	return &response, nil
 }
 
 // StartContainerApp starts a ContainerApp in Cloud.ru
-func (c *ContainerAppsApplication) StartContainerApp(projectID string, containerAppName string) error {
+func (c *ContainerAppsApplication) StartContainerApp(projectID string, containerAppName string) (*domain.Operation, error) {
 	token, err := c.authService.GetAccessToken()
 	if err != nil {
-		return fmt.Errorf("failed to get access token: %w", err)
+		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
 
 	// Make POST request to ContainerApps API to start the container app
@@ -381,7 +381,7 @@ func (c *ContainerAppsApplication) StartContainerApp(projectID string, container
 	url := fmt.Sprintf("%s/v2/containers/%s:start?projectId=%s", c.cfg.API.ContainersAPI, containerAppName, projectID)
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -390,28 +390,34 @@ func (c *ContainerAppsApplication) StartContainerApp(projectID string, container
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to make request: %w", err)
+		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	// According to the API documentation, a successful start should return 200 OK
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	return nil
+	// Create and return an Operation object by parsing the response body
+	var response domain.Operation
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse container app operation response: %w body length: %d body: %s", err, len(body), string(body))
+	}
+
+	return &response, nil
 }
 
 // StopContainerApp stops a ContainerApp in Cloud.ru
-func (c *ContainerAppsApplication) StopContainerApp(projectID string, containerAppName string) error {
+func (c *ContainerAppsApplication) StopContainerApp(projectID string, containerAppName string) (*domain.Operation, error) {
 	token, err := c.authService.GetAccessToken()
 	if err != nil {
-		return fmt.Errorf("failed to get access token: %w", err)
+		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
 
 	// Make POST request to ContainerApps API to stop the container app
@@ -419,7 +425,7 @@ func (c *ContainerAppsApplication) StopContainerApp(projectID string, containerA
 	url := fmt.Sprintf("%s/v2/containers/%s:stop?projectId=%s", c.cfg.API.ContainersAPI, containerAppName, projectID)
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -428,21 +434,26 @@ func (c *ContainerAppsApplication) StopContainerApp(projectID string, containerA
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to make request: %w", err)
+		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	// According to the API documentation, a successful stop should return 200 OK
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	return nil
+	var response domain.Operation
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse container app operation response: %w body length: %d body: %s", err, len(body), string(body))
+	}
+
+	return &response, nil
 }
 
 // GetContainerAppLogs gets logs for a specific ContainerApp from Cloud.ru API
@@ -666,21 +677,13 @@ func (c *ContainerAppsApplication) PatchContainerApp(projectID string, container
 		return nil, fmt.Errorf("API returned empty response body with status %d", resp.StatusCode)
 	}
 
-	// Parse response
-	var containerApp domain.ContainerApp
-	if err := json.Unmarshal(body, &containerApp); err != nil {
-		return nil, fmt.Errorf("failed to parse containerapp response: %w body length: %d body: %s", err, len(body), string(body))
+	// Create and return an Operation object by parsing the response body
+	var response domain.Operation
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse container app operation response: %w body length: %d body: %s", err, len(body), string(body))
 	}
 
-	// Create and return an Operation object
-	operation := &domain.Operation{
-		ResourceName: containerApp.Name,
-		ResourceID:   containerApp.ID,
-		Description:  fmt.Sprintf("Container App %s patched successfully", containerApp.Name),
-		Done:         true,
-	}
-
-	return operation, nil
+	return &response, nil
 }
 
 // deepMerge performs a deep merge of two maps

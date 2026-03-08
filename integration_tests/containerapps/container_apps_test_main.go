@@ -126,8 +126,8 @@ func getContainerAppForVerification(cfg *config.Config, name string) *domain.Con
 func deleteContainerApp(cfg *config.Config, name string) {
 	ca := cloudru.NewContainerAppsApplication(cfg)
 
-	log.Println("Testing GetContainerApp...")
-	err := ca.DeleteContainerApp(cfg.ProjectID, name)
+	log.Println("Testing DeleteContainerApp...")
+	_, err := ca.DeleteContainerApp(cfg.ProjectID, name)
 	if err != nil {
 		log.Printf("deleteContainerApp error: %v", err)
 	} else {

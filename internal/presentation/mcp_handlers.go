@@ -169,10 +169,10 @@ func NewMCPServer(descriptionService domain.DescriptionService, dockerService do
 				required:     false,
 			},
 			"containerapp_cpu": {
-				description:  "CPU allocation (0.1 CPU - 256 Mi RAM, 0.2 CPU - 512 Mi RAM, ...)",
+				description:  "CPU allocation (0.1 CPU - 256 Mi RAM, 0.2 CPU - 512 Mi RAM, 0.3 CPU - 768 RAM, 0.5 CPU - 1Gb RAM ...)",
 				defaultValue: "0.1",
 				required:     false,
-				title:        "Options: 0.1, 0.2, 0.5, 1",
+				title:        "Options: 0.1, 0.2, 0.3, 0.5, 1",
 			},
 			"containerapp_min_instance_count": {
 				description:  "Minimum number of instances for scaling",
@@ -955,12 +955,18 @@ func (s *MCPServer) RegisterDeleteContainerAppTool(server *server.MCPServer) {
 		// but the actual confirmation would typically happen in the client UI
 
 		// Call the service
-		err = s.containerAppsService.DeleteContainerApp(projectID, containerAppName)
+		operation, err := s.containerAppsService.DeleteContainerApp(projectID, containerAppName)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		return mcp.NewToolResultText(fmt.Sprintf("Successfully deleted Container App: %s", containerAppName)), nil
+		// Convert to JSON for output
+		result, err := json.MarshalIndent(operation, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to format result: %v", err)), nil
+		}
+
+		return mcp.NewToolResultText(fmt.Sprintf("Successfully deleted Container App: %s\n%s", containerAppName, string(result))), nil
 	})
 }
 
@@ -988,12 +994,18 @@ func (s *MCPServer) RegisterStartContainerAppTool(server *server.MCPServer) {
 		}
 
 		// Call the service
-		err = s.containerAppsService.StartContainerApp(projectID, containerAppName)
+		operation, err := s.containerAppsService.StartContainerApp(projectID, containerAppName)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		return mcp.NewToolResultText(fmt.Sprintf("Successfully started Container App: %s", containerAppName)), nil
+		// Convert to JSON for output
+		result, err := json.MarshalIndent(operation, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to format result: %v", err)), nil
+		}
+
+		return mcp.NewToolResultText(fmt.Sprintf("Successfully started Container App: %s\n%s", containerAppName, string(result))), nil
 	})
 }
 
@@ -1021,12 +1033,18 @@ func (s *MCPServer) RegisterStopContainerAppTool(server *server.MCPServer) {
 		}
 
 		// Call the service
-		err = s.containerAppsService.StopContainerApp(projectID, containerAppName)
+		operation, err := s.containerAppsService.StopContainerApp(projectID, containerAppName)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		return mcp.NewToolResultText(fmt.Sprintf("Successfully stopped Container App: %s", containerAppName)), nil
+		// Convert to JSON for output
+		result, err := json.MarshalIndent(operation, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to format result: %v", err)), nil
+		}
+
+		return mcp.NewToolResultText(fmt.Sprintf("Successfully stopped Container App: %s\n%s", containerAppName, string(result))), nil
 	})
 }
 

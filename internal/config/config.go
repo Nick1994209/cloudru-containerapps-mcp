@@ -61,7 +61,7 @@ func LoadConfig() *Config {
 	keySecret := os.Getenv(EnvKeySecret)
 
 	if keyID == "" || keySecret == "" {
-		log.Fatal(`CLOUDRU_KEY_ID and CLOUDRU_KEY_SECRET environment variables are required for authentication.
+		log.Printf(`CLOUDRU_KEY_ID and CLOUDRU_KEY_SECRET environment variables are required for authentication.
 
 To generate your access keys, please refer to the official guide:
 https://cloud.ru/docs/console_api/ug/topics/quickstart
