@@ -1,0 +1,24 @@
+# This file is used to group timeline events in the MCP server
+# It helps organize related events and operations for better visualization
+
+# Group 1: Authentication and Login
+cloudru_docker_login
+
+# Group 2: Image Management
+cloudru_docker_build_and_push
+cloudru_get_registry_images
+
+# Group 3: Container App Management
+cloudru_create_containerapp
+cloudru_get_list_containerapps
+cloudru_get_containerapp
+cloudru_patch_containerapp
+cloudru_delete_containerapp
+cloudru_start_containerapp
+cloudru_stop_containerapp
+cloudru_get_containerapp_logs
+cloudru_get_containerapp_system_logs
+
+# Group 4: Docker Registry Management
+cloudru_create_docker_registry
+cloudru_get_list_docker_registries

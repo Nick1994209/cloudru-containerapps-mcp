@@ -40,9 +40,9 @@ const (
 	EnvRepositoryName   = "CLOUDRU_REPOSITORY_NAME"
 	EnvProjectID        = "CLOUDRU_PROJECT_ID"
 	EnvContainerAppName = "CLOUDRU_CONTAINERAPP_NAME"
-	Dockerfile          = "CLOUDRU_DOCKERFILE"
-	DockerfileTarget    = "CLOUDRU_DOCKERFILE_TARGET"
-	DockerfileFolder    = "CLOUDRU_DOCKERFILE_FOLDER"
+	EnvDockerfile       = "CLOUDRU_DOCKERFILE"
+	EnvDockerfileTarget = "CLOUDRU_DOCKERFILE_TARGET"
+	EnvDockerfileFolder = "CLOUDRU_DOCKERFILE_FOLDER"
 	EnvContainersAPI    = "CLOUDRU_CONTAINERS_API"
 	EnvIAMAPI           = "CLOUDRU_IAM_API"
 	EnvArtifactAPI      = "CLOUDRU_ARTIFACT_API"
@@ -105,9 +105,9 @@ A valid Key ID and Key Secret are necessary to access this service.`)
 		RepositoryName:   os.Getenv(EnvRepositoryName),
 		ProjectID:        os.Getenv(EnvProjectID),
 		ContainerAppName: os.Getenv(EnvContainerAppName),
-		Dockerfile:       os.Getenv(Dockerfile),
-		DockerfileTarget: os.Getenv(DockerfileTarget),
-		DockerfileFolder: os.Getenv(DockerfileFolder),
+		Dockerfile:       os.Getenv(EnvDockerfile),
+		DockerfileTarget: os.Getenv(EnvDockerfileTarget),
+		DockerfileFolder: os.Getenv(EnvDockerfileFolder),
 		CurrentDir:       projectDirName,
 		API: APIURLs{
 			ContainersAPI: containersAPI,

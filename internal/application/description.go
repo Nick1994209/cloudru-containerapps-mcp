@@ -37,15 +37,15 @@ Environment variables can be used as fallbacks for parameters:
 
 **Current configuration values:**
 - Current directory: (` + cfg.CurrentDir + `) (Name of the current working directory)
-- CLOUDRU_KEY_ID: (` + maskSensitiveInfo(cfg.KeyID) + `) [required] (Authentication key identifier)
-- CLOUDRU_KEY_SECRET: (` + maskSensitiveInfo(cfg.KeySecret) + `) [required] (Authentication key secret)
-- CLOUDRU_PROJECT_ID: (` + cfg.ProjectID + `) (Project ID for Container Apps)
-- CLOUDRU_REGISTRY_NAME: (` + cfg.RegistryName + `) (Registry for storing Docker images)
-- CLOUDRU_REPOSITORY_NAME: (` + cfg.RepositoryName + `) (Name of the repository in the registry)
-- CLOUDRU_DOCKERFILE: (` + cfg.Dockerfile + `) (Path to the Dockerfile to build the image, by default Dockerfile)
-- CLOUDRU_DOCKERFILE_TARGET: (` + cfg.DockerfileTarget + `) (Dockerfile target stage, defaults to "-" which means no target)
-- CLOUDRU_DOCKERFILE_FOLDER: (` + cfg.DockerfileFolder + `) (Dockerfile folder (build context), defaults to "." which means current directory)
-- CLOUDRU_CONTAINERAPP_NAME: (` + cfg.ContainerAppName + `) (Container App name)
+- ` + config.EnvKeyID + `: (` + maskSensitiveInfo(cfg.KeyID) + `) [required] (Authentication key identifier)
+- ` + config.EnvKeySecret + `: (` + maskSensitiveInfo(cfg.KeySecret) + `) [required] (Authentication key secret)
+- ` + config.EnvProjectID + `: (` + cfg.ProjectID + `) (Project ID for Container Apps)
+- ` + config.EnvRegistryName + `: (` + cfg.RegistryName + `) (Registry for storing Docker images)
+- ` + config.EnvRepositoryName + `: (` + cfg.RepositoryName + `) (Name of the repository in the registry)
+- ` + config.EnvDockerfile + `: (` + cfg.Dockerfile + `) (Path to the Dockerfile to build the image, by default Dockerfile)
+- ` + config.EnvDockerfileTarget + `: (` + cfg.DockerfileTarget + `) (Dockerfile target stage, defaults to "-" which means no target)
+- ` + config.EnvDockerfileFolder + `: (` + cfg.DockerfileFolder + `) (Dockerfile folder (build context), defaults to "." which means current directory)
+- ` + config.EnvContainerAppName + `: (` + cfg.ContainerAppName + `) (Container App name)
 
 For more details see: https://cloud.ru/docs/container-apps-evolution/ug/topics/tutorials__before-work`
 }
