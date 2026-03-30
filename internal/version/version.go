@@ -8,7 +8,7 @@ import (
 // Version information
 var (
 	// Version is the application version
-	Version = "0.0.1"
+	Version = "0.0.2"
 
 	// GitCommit is the git commit hash
 	GitCommit = "unknown"

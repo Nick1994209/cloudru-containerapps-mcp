@@ -34,7 +34,7 @@ func (d *ArtifactRegistryApplication) GetListDockerRegistries(projectID string) 
 	}
 
 	// Make request to Docker Registries API
-	url := fmt.Sprintf("%s/v1/projects/%s/registries", d.cfg.API.ArtifactAPI, projectID)
+	url := fmt.Sprintf("%s/v1/registries?projectId=%s", d.cfg.API.ArtifactAPI, projectID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -96,6 +96,7 @@ func (d *ArtifactRegistryApplication) CreateDockerRegistry(projectID string, reg
 
 	// Prepare the request payload
 	payload := map[string]interface{}{
+		"projectId":    projectID,
 		"name":         registryName,
 		"isPublic":     isPublic,
 		"registryType": "DOCKER",
@@ -108,7 +109,7 @@ func (d *ArtifactRegistryApplication) CreateDockerRegistry(projectID string, reg
 	}
 
 	// Make request to Docker Registries API
-	url := fmt.Sprintf("%s/v1/projects/%s/registries", d.cfg.API.ArtifactAPI, projectID)
+	url := fmt.Sprintf("%s/v1/registries", d.cfg.API.ArtifactAPI)
 	req, err := http.NewRequest("POST", url, strings.NewReader(string(jsonPayload)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)

@@ -225,40 +225,38 @@ func (s *MCPServer) getMCPFieldsOptions(description string, fields ...string) []
 	}
 	for _, field := range fields {
 		fieldData := s.mappedFields[field]
-		if fieldData.envValue == "" {
-			description := fieldData.description
-			if fieldData.defaultValue != "" {
-				description = fmt.Sprintf("%s (default: %s)", fieldData.description, fieldData.defaultValue)
-			}
-			opts := []mcp.PropertyOption{
-				mcp.Description(description),
-			}
-			if fieldData.required {
-				opts = append(opts, mcp.Required())
-			}
-			if fieldData.title != "" {
-				opts = append(opts, mcp.Title(fieldData.title))
-			}
-			if fieldData.defaultValue != "" {
-				opts = append(opts, mcp.DefaultString(fieldData.defaultValue))
-			}
-			result = append(result, mcp.WithString(field, opts...))
+		description := fieldData.description
+		if fieldData.envValue != "" {
+			description = fmt.Sprintf("%s (default: %s)", fieldData.description, fieldData.envValue)
+		} else if fieldData.defaultValue != "" {
+			description = fmt.Sprintf("%s (default: %s)", fieldData.description, fieldData.defaultValue)
 		}
+		opts := []mcp.PropertyOption{
+			mcp.Description(description),
+		}
+		if fieldData.required && fieldData.envValue == "" {
+			opts = append(opts, mcp.Required())
+		}
+		if fieldData.title != "" {
+			opts = append(opts, mcp.Title(fieldData.title))
+		}
+		if fieldData.envValue != "" {
+			opts = append(opts, mcp.DefaultString(fieldData.envValue))
+		} else if fieldData.defaultValue != "" {
+			opts = append(opts, mcp.DefaultString(fieldData.defaultValue))
+		}
+		result = append(result, mcp.WithString(field, opts...))
 	}
 	return result
 }
 
 func (s *MCPServer) getMCPFieldValue(field string, request mcp.CallToolRequest) (string, error) {
 	fieldData := s.mappedFields[field]
-	// If we have an environment variable value, use it
-	if fieldData.envValue != "" {
-		return fieldData.envValue, nil
-	}
 
 	// Try to get the value from the request
 	result, err := request.RequireString(field)
-	if err != nil && fieldData.defaultValue == "" {
-		// If there's an error and no default or env value, return the error
+	if err != nil && fieldData.defaultValue == "" && fieldData.envValue == "" && fieldData.required {
+		// If there's an error and no default or env value, and the field is required, return the error
 		return "", err
 	}
 
@@ -267,18 +265,28 @@ func (s *MCPServer) getMCPFieldValue(field string, request mcp.CallToolRequest) 
 		return result, nil
 	}
 
+	// If we have an environment variable value, use it
+	if fieldData.envValue != "" {
+		return fieldData.envValue, nil
+	}
+
 	// Otherwise, use the default value if available
 	if fieldData.defaultValue != "" {
 		return fieldData.defaultValue, nil
 	}
 
-	// Otherwise, use the default value if available
+	// If the field is not required, return empty string
 	if !fieldData.required {
 		return "", nil
 	}
 
+	// If we get here and the field is required but has no value, return an error
+	if fieldData.required && result == "" && fieldData.defaultValue == "" && fieldData.envValue == "" {
+		return "", fmt.Errorf("field %s is empty: %s", field, fieldData.description)
+	}
+
 	// If we get here, return whatever we have (likely empty)
-	return "", fmt.Errorf("field %s is empty: %s", field, fieldData.description)
+	return result, nil
 }
 
 func (s *MCPServer) getMCPBooleanFieldValue(field string, request mcp.CallToolRequest) (bool, error) {
@@ -315,7 +323,7 @@ func (s *MCPServer) RegisterDockerLoginTool(server *server.MCPServer) {
 
 	server.AddTool(dockerLoginTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Using helper functions for type-safe argument access
-		registryName, err := s.getMCPFieldValue("registry_name", request)
+		registryName, err := request.RequireString("registry_name")
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}

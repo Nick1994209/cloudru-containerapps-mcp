@@ -29,8 +29,16 @@ func NewAuthApplication(cfg *config.Config) domain.AuthService {
 	}
 }
 
-// GetAccessToken gets an access token using KEY_ID and KEY_SECRET
+// GetAccessToken gets an access token using CLOUDRU_KEY_ID and CLOUDRU_KEY_SECRET
+// This method requires the following environment variables to be set:
+// - CLOUDRU_KEY_ID: Service account key ID
+// - CLOUDRU_KEY_SECRET: Service account key secret
 func (a *AuthApplication) GetAccessToken() (string, error) {
+	// Validate that required credentials are present
+	if a.creds.KeyID == "" || a.creds.KeySecret == "" {
+		return "", fmt.Errorf("CLOUDRU_KEY_ID and CLOUDRU_KEY_SECRET environment variables are required for authentication. Please set these variables in your environment")
+	}
+
 	url := fmt.Sprintf("%s/api/v1/auth/token", a.cfg.API.IAMAPI)
 
 	payload := strings.NewReader(fmt.Sprintf(`{"keyId": "%s","secret": "%s"}`, a.creds.KeyID, a.creds.KeySecret))
