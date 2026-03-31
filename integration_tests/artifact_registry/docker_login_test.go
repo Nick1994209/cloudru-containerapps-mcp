@@ -7,7 +7,7 @@ import (
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/config"
 )
 
-func main() {
+func runDockerLoginTest() {
 	cfg := config.LoadConfig()
 
 	// Test docker login with a specific registry name

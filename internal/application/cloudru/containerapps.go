@@ -561,14 +561,14 @@ func (c *ContainerAppsApplication) PatchContainerApp(projectID string, container
 	}
 
 	// Use environment variables directly (already parsed)
-	envVars := c.parseEnvironmentVariables(*updateRequest.EnvironmentVariables)
+	var envVars []map[string]interface{}
+	if updateRequest.EnvironmentVariables != nil {
+		envVars = c.parseEnvironmentVariables(*updateRequest.EnvironmentVariables)
+	}
 
-	// Map CPU to memory
+	// Map CPU to memory if provided
 	var cpu, memory *string
-	if updateRequest.CPU == nil || *updateRequest.CPU == "" {
-		cpu = nil
-		memory = nil
-	} else {
+	if updateRequest.CPU != nil && *updateRequest.CPU != "" {
 		cpuVal, memoryVal := c.parseCPU(*updateRequest.CPU)
 		cpu = &cpuVal
 		memory = &memoryVal
@@ -582,42 +582,89 @@ func (c *ContainerAppsApplication) PatchContainerApp(projectID string, container
 		newPayload["description"] = *updateRequest.Description
 	}
 
-	newPayload["configuration"] = map[string]interface{}{
-		"ingress": map[string]interface{}{
-			"publiclyAccessible": updateRequest.PubliclyAccessible,
-		},
-		"autoDeployments": map[string]interface{}{
-			"enabled": updateRequest.AutoDeploymentsEnabled,
-			"pattern": updateRequest.AutoDeploymentsPattern,
-		},
+	// Build configuration section
+	configSection := map[string]interface{}{}
+	if updateRequest.PubliclyAccessible != nil {
+		configSection["ingress"] = map[string]interface{}{
+			"publiclyAccessible": *updateRequest.PubliclyAccessible,
+		}
 	}
-	newPayload["template"] = map[string]interface{}{
-		"timeout":     updateRequest.Timeout,
-		"idleTimeout": updateRequest.IdleTimeout,
-		"protocol":    updateRequest.Protocol,
-		"scaling": map[string]interface{}{
-			"minInstanceCount": updateRequest.MinInstanceCount,
-			"maxInstanceCount": updateRequest.MaxInstanceCount,
-		},
-		"containers": []map[string]interface{}{
-			{
-				"image":         updateRequest.ContainerAppImage,
-				"containerPort": updateRequest.ContainerAppPort,
-				"resources": map[string]string{
-					"cpu":    *cpu,
-					"memory": *memory,
-				},
-				"env": envVars,
-			},
-		},
+	if updateRequest.AutoDeploymentsEnabled != nil || updateRequest.AutoDeploymentsPattern != nil {
+		autoDeployments := map[string]interface{}{}
+		if updateRequest.AutoDeploymentsEnabled != nil {
+			autoDeployments["enabled"] = *updateRequest.AutoDeploymentsEnabled
+		}
+		if updateRequest.AutoDeploymentsPattern != nil {
+			autoDeployments["pattern"] = *updateRequest.AutoDeploymentsPattern
+		}
+		configSection["autoDeployments"] = autoDeployments
+	}
+	if len(configSection) > 0 {
+		newPayload["configuration"] = configSection
 	}
 
-	// Add command and args to the container if provided
+	// Build template section
+	templateSection := map[string]interface{}{}
+	if updateRequest.Timeout != nil {
+		templateSection["timeout"] = *updateRequest.Timeout
+	}
+	if updateRequest.IdleTimeout != nil {
+		templateSection["idleTimeout"] = *updateRequest.IdleTimeout
+	}
+	if updateRequest.Protocol != nil {
+		templateSection["protocol"] = *updateRequest.Protocol
+	}
+
+	// Build scaling section
+	if updateRequest.MinInstanceCount != nil || updateRequest.MaxInstanceCount != nil {
+		scaling := map[string]interface{}{}
+		if updateRequest.MinInstanceCount != nil {
+			scaling["minInstanceCount"] = *updateRequest.MinInstanceCount
+		}
+		if updateRequest.MaxInstanceCount != nil {
+			scaling["maxInstanceCount"] = *updateRequest.MaxInstanceCount
+		}
+		templateSection["scaling"] = scaling
+	}
+
+	// Build container section
+	containerSection := map[string]interface{}{}
+
+	// Always include the current image and port if we're updating any container fields
+	if updateRequest.ContainerAppImage != nil || cpu != nil || updateRequest.ContainerAppPort != nil || len(envVars) > 0 || len(updateRequest.Command) > 0 || len(updateRequest.Args) > 0 {
+		if updateRequest.ContainerAppImage != nil {
+			containerSection["image"] = *updateRequest.ContainerAppImage
+		} else if len(currentContainerApp.Template.Containers) > 0 {
+			containerSection["image"] = currentContainerApp.Template.Containers[0].Image
+		}
+
+		if updateRequest.ContainerAppPort != nil {
+			containerSection["containerPort"] = *updateRequest.ContainerAppPort
+		} else if len(currentContainerApp.Template.Containers) > 0 {
+			containerSection["containerPort"] = currentContainerApp.Template.Containers[0].ContainerPort
+		}
+	}
+	if cpu != nil && memory != nil {
+		containerSection["resources"] = map[string]string{
+			"cpu":    *cpu,
+			"memory": *memory,
+		}
+	}
+	if len(envVars) > 0 {
+		containerSection["env"] = envVars
+	}
 	if len(updateRequest.Command) > 0 {
-		newPayload["template"].(map[string]interface{})["containers"].([]map[string]interface{})[0]["command"] = updateRequest.Command
+		containerSection["command"] = updateRequest.Command
 	}
 	if len(updateRequest.Args) > 0 {
-		newPayload["template"].(map[string]interface{})["containers"].([]map[string]interface{})[0]["args"] = updateRequest.Args
+		containerSection["args"] = updateRequest.Args
+	}
+	if len(containerSection) > 0 {
+		templateSection["containers"] = []map[string]interface{}{containerSection}
+	}
+
+	if len(templateSection) > 0 {
+		newPayload["template"] = templateSection
 	}
 
 	// Convert current container app to map for merging
