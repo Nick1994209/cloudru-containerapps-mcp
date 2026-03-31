@@ -50,100 +50,93 @@ func (s *MCPServer) RegisterPatchContainerAppTool(mcpServer *server.MCPServer) {
 		}
 
 		// Get container app port
-		containerAppPortStr, err := s.getMCPFieldValue("containerapp_port", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+		containerAppPortStr, _ := s.getMCPFieldValue("containerapp_port", request)
 
-		// Convert port to integer
-		var containerAppPort int
-		fmt.Sscanf(containerAppPortStr, "%d", &containerAppPort)
+		// Convert port to integer pointer
+		var containerAppPort *int
+		if containerAppPortStr != "" {
+			var port int
+			n, err := fmt.Sscanf(containerAppPortStr, "%d", &port)
+			if err != nil || n != 1 {
+				return mcp.NewToolResultError(fmt.Sprintf("Failed to parse containerapp_port: %s", containerAppPortStr)), nil
+			}
+			containerAppPort = &port
+		}
 
 		// Get container app image
-		containerAppImage, err := s.getMCPFieldValue("containerapp_image", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+		containerAppImage, _ := s.getMCPFieldValue("containerapp_image", request)
 
 		// Get auto deployments enabled
-		autoDeploymentsEnabled, err := s.getMCPBooleanFieldValue("containerapp_auto_deployments_enabled", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
+		autoDeploymentsEnabledStr, _ := s.getMCPFieldValue("containerapp_auto_deployments_enabled", request)
+		var autoDeploymentsEnabled *bool
+		if autoDeploymentsEnabledStr != "" {
+			var enabled bool
+			n, err := fmt.Sscanf(autoDeploymentsEnabledStr, "%t", &enabled)
+			if err != nil || n != 1 {
+				return mcp.NewToolResultError(fmt.Sprintf("Failed to parse containerapp_auto_deployments_enabled: %s", autoDeploymentsEnabledStr)), nil
+			}
+			autoDeploymentsEnabled = &enabled
 		}
 
 		// Get auto deployments pattern
-		autoDeploymentsPattern, err := s.getMCPFieldValue("containerapp_auto_deployments_pattern", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+		autoDeploymentsPattern, _ := s.getMCPFieldValue("containerapp_auto_deployments_pattern", request)
 
 		// Get idle timeout
-		idleTimeout, err := s.getMCPFieldValue("containerapp_idle_timeout", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+		idleTimeout, _ := s.getMCPFieldValue("containerapp_idle_timeout", request)
 
 		// Get timeout
-		timeout, err := s.getMCPFieldValue("containerapp_timeout", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+		timeout, _ := s.getMCPFieldValue("containerapp_timeout", request)
 
 		// Get CPU
-		cpu, err := s.getMCPFieldValue("containerapp_cpu", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+		cpu, _ := s.getMCPFieldValue("containerapp_cpu", request)
 
 		// Get min instance count
-		minInstanceCountStr, err := s.getMCPFieldValue("containerapp_min_instance_count", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
-		var minInstanceCount int
+		minInstanceCountStr, _ := s.getMCPFieldValue("containerapp_min_instance_count", request)
+		var minInstanceCount *int
 		if minInstanceCountStr != "" {
-			fmt.Sscanf(minInstanceCountStr, "%d", &minInstanceCount)
+			var count int
+			n, err := fmt.Sscanf(minInstanceCountStr, "%d", &count)
+			if err != nil || n != 1 {
+				return mcp.NewToolResultError(fmt.Sprintf("Failed to parse containerapp_min_instance_count: %s", minInstanceCountStr)), nil
+			}
+			minInstanceCount = &count
 		}
 
 		// Get max instance count
-		maxInstanceCountStr, err := s.getMCPFieldValue("containerapp_max_instance_count", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
-		var maxInstanceCount int
+		maxInstanceCountStr, _ := s.getMCPFieldValue("containerapp_max_instance_count", request)
+		var maxInstanceCount *int
 		if maxInstanceCountStr != "" {
-			fmt.Sscanf(maxInstanceCountStr, "%d", &maxInstanceCount)
+			var count int
+			n, err := fmt.Sscanf(maxInstanceCountStr, "%d", &count)
+			if err != nil || n != 1 {
+				return mcp.NewToolResultError(fmt.Sprintf("Failed to parse containerapp_max_instance_count: %s", maxInstanceCountStr)), nil
+			}
+			maxInstanceCount = &count
 		}
 
 		// Get description
-		description, err := s.getMCPFieldValue("containerapp_description", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+		description, _ := s.getMCPFieldValue("containerapp_description", request)
 
 		// Get publicly accessible
-		publiclyAccessible, err := s.getMCPBooleanFieldValue("containerapp_publicly_accessible", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
+		publiclyAccessibleStr, _ := s.getMCPFieldValue("containerapp_publicly_accessible", request)
+		var publiclyAccessible *bool
+		if publiclyAccessibleStr != "" {
+			var accessible bool
+			n, err := fmt.Sscanf(publiclyAccessibleStr, "%t", &accessible)
+			if err != nil || n != 1 {
+				return mcp.NewToolResultError(fmt.Sprintf("Failed to parse containerapp_publicly_accessible: %s", publiclyAccessibleStr)), nil
+			}
+			publiclyAccessible = &accessible
 		}
 
 		// Get protocol
-		protocol, err := s.getMCPFieldValue("containerapp_protocol", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+		protocol, _ := s.getMCPFieldValue("containerapp_protocol", request)
 
 		// Get environment variables
-		environmentVariables, err := s.getMCPFieldValue("containerapp_environment_variables", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+		environmentVariables, _ := s.getMCPFieldValue("containerapp_environment_variables", request)
 
 		// Get command
-		commandStr, err := s.getMCPFieldValue("containerapp_command", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+		commandStr, _ := s.getMCPFieldValue("containerapp_command", request)
 		var command []string
 		if commandStr != "" {
 			// Split by comma
@@ -155,10 +148,7 @@ func (s *MCPServer) RegisterPatchContainerAppTool(mcpServer *server.MCPServer) {
 		}
 
 		// Get args
-		argsStr, err := s.getMCPFieldValue("containerapp_args", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+		argsStr, _ := s.getMCPFieldValue("containerapp_args", request)
 		var args []string
 		if argsStr != "" {
 			// Split by comma
@@ -175,7 +165,7 @@ func (s *MCPServer) RegisterPatchContainerAppTool(mcpServer *server.MCPServer) {
 			ContainerAppName: containerAppName,
 			ContainerAppPort: func() *int {
 				if checkRequestHasKey(request, "containerapp_port") {
-					return &containerAppPort
+					return containerAppPort
 				}
 				return nil
 			}(),
@@ -187,7 +177,7 @@ func (s *MCPServer) RegisterPatchContainerAppTool(mcpServer *server.MCPServer) {
 			}(),
 			AutoDeploymentsEnabled: func() *bool {
 				if checkRequestHasKey(request, "containerapp_auto_deployments_enabled") {
-					return &autoDeploymentsEnabled
+					return autoDeploymentsEnabled
 				}
 				return nil
 			}(),
@@ -217,13 +207,13 @@ func (s *MCPServer) RegisterPatchContainerAppTool(mcpServer *server.MCPServer) {
 			}(),
 			MinInstanceCount: func() *int {
 				if checkRequestHasKey(request, "containerapp_min_instance_count") {
-					return &minInstanceCount
+					return minInstanceCount
 				}
 				return nil
 			}(),
 			MaxInstanceCount: func() *int {
 				if checkRequestHasKey(request, "containerapp_max_instance_count") {
-					return &maxInstanceCount
+					return maxInstanceCount
 				}
 				return nil
 			}(),
@@ -235,7 +225,7 @@ func (s *MCPServer) RegisterPatchContainerAppTool(mcpServer *server.MCPServer) {
 			}(),
 			PubliclyAccessible: func() *bool {
 				if checkRequestHasKey(request, "containerapp_publicly_accessible") {
-					return &publiclyAccessible
+					return publiclyAccessible
 				}
 				return nil
 			}(),
