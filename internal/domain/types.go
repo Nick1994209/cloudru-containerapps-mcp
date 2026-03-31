@@ -46,7 +46,6 @@ type PatchContainerAppRequest struct {
 	ContainerAppImage      *string  `json:"containerAppImage"`
 	AutoDeploymentsEnabled *bool    `json:"autoDeploymentsEnabled"`
 	AutoDeploymentsPattern *string  `json:"autoDeploymentsPattern"`
-	Privileged             *bool    `json:"privileged"`
 	IdleTimeout            *string  `json:"idleTimeout"`
 	Timeout                *string  `json:"timeout"`
 	CPU                    *string  `json:"cpu"`
@@ -78,7 +77,6 @@ type ContainerApp struct {
 			Enabled bool   `json:"enabled"`
 			Pattern string `json:"pattern"`
 		} `json:"autoDeployments"`
-		Privileged bool `json:"privileged"`
 	} `json:"configuration"`
 	Template struct {
 		Timeout     string `json:"timeout"`

@@ -482,7 +482,6 @@ func (s *MCPServer) RegisterPatchContainerAppTool(server *server.MCPServer) {
 		"containerapp_image",
 		"containerapp_auto_deployments_enabled",
 		"containerapp_auto_deployments_pattern",
-		"containerapp_privileged",
 		"containerapp_idle_timeout",
 		"containerapp_timeout",
 		"containerapp_cpu",
@@ -534,12 +533,6 @@ func (s *MCPServer) RegisterPatchContainerAppTool(server *server.MCPServer) {
 
 		// Get auto deployments pattern
 		autoDeploymentsPattern, err := s.getMCPFieldValue("containerapp_auto_deployments_pattern", request)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
-
-		// Get privileged
-		privileged, err := s.getMCPBooleanFieldValue("containerapp_privileged", request)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
@@ -661,12 +654,6 @@ func (s *MCPServer) RegisterPatchContainerAppTool(server *server.MCPServer) {
 			AutoDeploymentsPattern: func() *string {
 				if checkRequestHasKey(request, "containerapp_auto_deployments_pattern") {
 					return &autoDeploymentsPattern
-				}
-				return nil
-			}(),
-			Privileged: func() *bool {
-				if checkRequestHasKey(request, "containerapp_privileged") {
-					return &privileged
 				}
 				return nil
 			}(),

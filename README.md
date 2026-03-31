@@ -138,7 +138,7 @@ Parameters:
 - `containerapp_command`: Command to run in the container (comma-separated values) (optional)
 - `containerapp_args`: Arguments for the command (comma-separated values) (optional)
 
-#### cloudru_patch_containerapp(project_id, containerapp_name, containerapp_port, containerapp_image, containerapp_auto_deployments_enabled, containerapp_auto_deployments_pattern, containerapp_privileged, containerapp_idle_timeout, containerapp_timeout, containerapp_cpu, containerapp_min_instance_count, containerapp_max_instance_count, containerapp_description, containerapp_publicly_accessible, containerapp_protocol, containerapp_environment_variables, containerapp_command, containerapp_args)
+#### cloudru_patch_containerapp(project_id, containerapp_name, containerapp_port, containerapp_image, containerapp_auto_deployments_enabled, containerapp_auto_deployments_pattern, containerapp_idle_timeout, containerapp_timeout, containerapp_cpu, containerapp_min_instance_count, containerapp_max_instance_count, containerapp_description, containerapp_publicly_accessible, containerapp_protocol, containerapp_environment_variables, containerapp_command, containerapp_args)
 
 Patches an existing Container App in Cloud.ru. This function gets the current state, merges it with the new values, and updates the container app.
 
@@ -149,7 +149,6 @@ Parameters:
 - `containerapp_image`: Image for the Container App (optional, will preserve existing if not provided)
 - `containerapp_auto_deployments_enabled`: Enable auto deployments (optional, will preserve existing if not provided)
 - `containerapp_auto_deployments_pattern`: Auto deployments pattern (optional, will preserve existing if not provided)
-- `containerapp_privileged`: Run container in privileged mode (optional, will preserve existing if not provided)
 - `containerapp_idle_timeout`: Container idle timeout (optional, will preserve existing if not provided)
 - `containerapp_timeout`: Request timeout (optional, will preserve existing if not provided)
 - `containerapp_cpu`: CPU allocation (optional, will preserve existing if not provided)

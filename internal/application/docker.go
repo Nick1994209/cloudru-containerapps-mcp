@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os/exec"
+	"strings"
 
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/application/cloudru"
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/config"
@@ -58,50 +59,102 @@ func (d *DockerApplication) Login(registryName string) (string, error) {
 
 // BuildAndPush builds and pushes a Docker image to Cloud.ru Artifact Registry
 func (d *DockerApplication) BuildAndPush(image domain.DockerImage) (string, error) {
+	// Login to the Docker registry
 	if _, err := d.Login(image.RegistryName); err != nil {
 		return "", err
 	}
 
-	imageTag := fmt.Sprintf("%s.%s/%s:%s", image.RegistryName, d.registryDomain, image.RepositoryName, image.ImageVersion)
+	// Get the command strings
+	buildCmdStr, pushCmdStr := d.generateCommands(image)
+
+	// Extract image tag for return value and error messages
+	imageTag := d.generateImageTag(image)
 
 	// Build the Docker image
-	var buildCmd *exec.Cmd
+	// Split the build command string and execute it
+	buildCmdParts := strings.Fields(buildCmdStr)
+	if len(buildCmdParts) > 0 {
+		buildCmd := exec.Command(buildCmdParts[0], buildCmdParts[1:]...)
+		buildOutput, buildErr := buildCmd.CombinedOutput()
+
+		// Always include build output in the response for visibility
+		if len(buildOutput) > 0 {
+			fmt.Printf("Docker build output:\n%s\n", string(buildOutput))
+		}
+
+		if buildErr != nil {
+			return "", fmt.Errorf("failed to build Docker image %s: %w\nOutput: %s", imageTag, buildErr, string(buildOutput))
+		}
+	}
+
+	// Push the Docker image
+	// Split the push command string and execute it
+	pushCmdParts := strings.Fields(pushCmdStr)
+	if len(pushCmdParts) > 0 {
+		pushCmd := exec.Command(pushCmdParts[0], pushCmdParts[1:]...)
+		pushOutput, pushErr := pushCmd.CombinedOutput()
+
+		// Always include push output in the response for visibility
+		if len(pushOutput) > 0 {
+			fmt.Printf("Docker push output:\n%s\n", string(pushOutput))
+		}
+
+		if pushErr != nil {
+			return "", fmt.Errorf("docker push failed: %w\nOutput: %s\n\nTo resolve this issue:\n1. Ensure you are logged in to the Docker registry\n2. Run the cloudru_docker_login function\n3. See documentation: https://cloud.ru/docs/container-apps-evolution/ug/topics/tutorials__before-work", pushErr, string(pushOutput))
+		}
+	}
+
+	return imageTag, nil
+}
+
+// generateImageTag creates the full image tag for a Docker image
+// If ImageVersion is empty, it defaults to "latest"
+func (d *DockerApplication) generateImageTag(image domain.DockerImage) string {
+	imageVersion := image.ImageVersion
+	if imageVersion == "" {
+		imageVersion = "latest"
+	}
+	return fmt.Sprintf("%s.%s/%s:%s", image.RegistryName, d.registryDomain, image.RepositoryName, imageVersion)
+}
+
+// generateBuildCommand creates the docker build command string
+func (d *DockerApplication) generateBuildCommand(image domain.DockerImage) string {
+	imageTag := d.generateImageTag(image)
+
+	// Start with the base command
+	buildCommand := fmt.Sprintf("docker build --platform linux/amd64 -t %s", imageTag)
+
+	// Add target if specified
+	if image.DockerfileTarget != "" && image.DockerfileTarget != "-" {
+		buildCommand = fmt.Sprintf("%s --target %s", buildCommand, image.DockerfileTarget)
+	}
+
+	// Handle Dockerfile path - if empty, don't include the -f flag
+	if image.DockerfilePath != "" {
+		buildCommand = fmt.Sprintf("%s -f %s", buildCommand, image.DockerfilePath)
+	}
+
 	// Set build context folder, default to current directory if not specified
 	buildContext := "."
 	if image.DockerfileFolder != "" && image.DockerfileFolder != "." {
 		buildContext = image.DockerfileFolder
 	}
+	buildCommand = fmt.Sprintf("%s %s", buildCommand, buildContext)
 
-	if image.DockerfileTarget != "" && image.DockerfileTarget != "-" {
-		buildCmd = exec.Command("docker", "build", "--platform", "linux/amd64", "-t", imageTag, "--target", image.DockerfileTarget, "-f", image.DockerfilePath, buildContext)
-	} else {
-		buildCmd = exec.Command("docker", "build", "--platform", "linux/amd64", "-t", imageTag, "-f", image.DockerfilePath, buildContext)
-	}
-	buildOutput, buildErr := buildCmd.CombinedOutput()
+	return buildCommand
+}
 
-	// Always include build output in the response for visibility
-	if len(buildOutput) > 0 {
-		fmt.Printf("Docker build output:\n%s\n", string(buildOutput))
-	}
+// generatePushCommand creates the docker push command string
+func (d *DockerApplication) generatePushCommand(image domain.DockerImage) string {
+	imageTag := d.generateImageTag(image)
+	return fmt.Sprintf("docker push --platform linux/amd64 %s", imageTag)
+}
 
-	if buildErr != nil {
-		return "", fmt.Errorf("failed to build Docker image %s: %w\nOutput: %s", imageTag, buildErr, string(buildOutput))
-	}
-
-	// Push the Docker image
-	pushCmd := exec.Command("docker", "push", "--platform", "linux/amd64", imageTag)
-	pushOutput, pushErr := pushCmd.CombinedOutput()
-
-	// Always include push output in the response for visibility
-	if len(pushOutput) > 0 {
-		fmt.Printf("Docker push output:\n%s\n", string(pushOutput))
-	}
-
-	if pushErr != nil {
-		return "", fmt.Errorf("docker push failed: %w\nOutput: %s\n\nTo resolve this issue:\n1. Ensure you are logged in to the Docker registry\n2. Run the cloudru_docker_login function\n3. See documentation: https://cloud.ru/docs/container-apps-evolution/ug/topics/tutorials__before-work", pushErr, string(pushOutput))
-	}
-
-	return imageTag, nil
+// generateCommands returns the docker build and push commands as strings
+func (d *DockerApplication) generateCommands(image domain.DockerImage) (string, string) {
+	buildCmd := d.generateBuildCommand(image)
+	pushCmd := d.generatePushCommand(image)
+	return buildCmd, pushCmd
 }
 
 // ShowBuildAndPushCommands returns the docker build and push commands as strings without executing them
@@ -110,25 +163,7 @@ func (d *DockerApplication) ShowBuildAndPushCommands(image domain.DockerImage) (
 		return "", "", err
 	}
 
-	imageTag := fmt.Sprintf("%s.%s/%s:%s", image.RegistryName, d.registryDomain, image.RepositoryName, image.ImageVersion)
-
-	// Build the Docker build command
-	var buildCmd string
-	// Set build context folder, default to current directory if not specified
-	buildContext := "."
-	if image.DockerfileFolder != "" && image.DockerfileFolder != "." {
-		buildContext = image.DockerfileFolder
-	}
-
-	if image.DockerfileTarget != "" && image.DockerfileTarget != "-" {
-		buildCmd = fmt.Sprintf("docker build --platform linux/amd64 -t %s --target %s -f %s %s", imageTag, image.DockerfileTarget, image.DockerfilePath, buildContext)
-	} else {
-		buildCmd = fmt.Sprintf("docker build --platform linux/amd64 -t %s -f %s %s", imageTag, image.DockerfilePath, buildContext)
-	}
-
-	// Build the Docker push command
-	pushCmd := fmt.Sprintf("docker push --platform linux/amd64 %s", imageTag)
-
+	buildCmd, pushCmd := d.generateCommands(image)
 	return buildCmd, pushCmd, nil
 }
 
