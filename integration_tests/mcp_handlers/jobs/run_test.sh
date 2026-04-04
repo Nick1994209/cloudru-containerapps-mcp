@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# ContainerApp Patch Integration Test Runner
-# This script runs the containerapp patch integration tests
+# Jobs Integration Test Runner
+# This script runs the jobs integration tests
 
 set -e
 
@@ -13,10 +13,10 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 echo "=========================================="
-echo "ContainerApp Patch Integration Tests"
+echo "Jobs Integration Tests"
 echo "=========================================="
 echo "Project root: $PROJECT_ROOT"
-echo "Test file: $SCRIPT_DIR/containerapp_patch.go"
+echo "Test file: $SCRIPT_DIR/main.go"
 echo ""
 
 # Check if .env file exists
@@ -30,7 +30,7 @@ echo "Running integration tests..."
 echo ""
 
 # Run the test
-go run "$SCRIPT_DIR/containerapp_patch.go"
+go run "$SCRIPT_DIR"/*.go
 
 echo ""
 echo "=========================================="

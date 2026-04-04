@@ -194,3 +194,88 @@ type Operation struct {
 type RegistryImagesResponse struct {
 	Images []RegistryImage `json:"images"`
 }
+
+// Job represents a Cloud.ru Job
+type Job struct {
+	ProjectID     string `json:"projectId"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	Status        string `json:"status"`
+	CreatedAt     string `json:"createdAt"`
+	CreatedBy     string `json:"createdBy"`
+	UpdatedAt     string `json:"updatedAt"`
+	UpdatedBy     string `json:"updatedBy"`
+	Configuration struct {
+		Privileged     bool `json:"privileged"`
+		LoggingService struct {
+			Enabled bool   `json:"enabled"`
+			URL     string `json:"url"`
+		} `json:"loggingService"`
+	} `json:"configuration"`
+	Template struct {
+		Timeout     interface{} `json:"timeout"`
+		IdleTimeout string      `json:"idleTimeout"`
+		Protocol    string      `json:"protocol"`
+		Scaling     struct {
+			MinInstanceCount int `json:"minInstanceCount"`
+			MaxInstanceCount int `json:"maxInstanceCount"`
+		} `json:"scaling"`
+		Containers []struct {
+			Name      string `json:"name"`
+			Image     string `json:"image"`
+			Resources struct {
+				CPU    string `json:"cpu"`
+				Memory string `json:"memory"`
+			} `json:"resources"`
+			ContainerPort int `json:"containerPort"`
+			Env           []struct {
+				Name  string `json:"name"`
+				Value string `json:"value"`
+				Type  string `json:"type,omitempty"`
+			} `json:"env"`
+			Command []interface{} `json:"command"`
+			Args    []interface{} `json:"args"`
+		} `json:"containers"`
+	} `json:"template"`
+}
+
+// JobExecution represents a Cloud.ru Job Execution
+type JobExecution struct {
+	ExecutionName   string `json:"executionName"`
+	ExecutionStatus string `json:"executionStatus"`
+	CreatedAt       string `json:"createdAt"`
+	UpdatedAt       string `json:"updatedAt"`
+}
+
+// CreateJobRequest represents a request to create a Job
+type CreateJobRequest struct {
+	ProjectID               string   `json:"projectId"`
+	JobName                 string   `json:"jobName"`
+	JobImage                string   `json:"jobImage"`
+	JobPrivileged           bool     `json:"jobPrivileged"`
+	JobCPU                  string   `json:"jobCPU"`
+	JobDescription          string   `json:"jobDescription"`
+	JobEnvironmentVariables string   `json:"jobEnvironmentVariables"`
+	JobCommand              []string `json:"jobCommand"`
+	JobArgs                 []string `json:"jobArgs"`
+	JobRetryCount           uint32   `json:"jobRetryCount"`
+	JobExecutionTimeout     uint32   `json:"jobExecutionTimeout"`
+	JobRunImmediately       bool     `json:"jobRunImmediately"`
+}
+
+// PatchJobRequest represents a request to patch a Job
+type PatchJobRequest struct {
+	ProjectID               string   `json:"projectId"`
+	JobName                 string   `json:"jobName"`
+	JobImage                *string  `json:"jobImage"`
+	JobPrivileged           *bool    `json:"jobPrivileged"`
+	JobCPU                  *string  `json:"jobCPU"`
+	JobDescription          *string  `json:"jobDescription"`
+	JobEnvironmentVariables *string  `json:"jobEnvironmentVariables"`
+	JobCommand              []string `json:"jobCommand"`
+	JobArgs                 []string `json:"jobArgs"`
+	JobRetryCount           *uint32  `json:"jobRetryCount"`
+	JobExecutionTimeout     *uint32  `json:"jobExecutionTimeout"`
+	JobRunImmediately       *bool    `json:"jobRunImmediately"`
+}

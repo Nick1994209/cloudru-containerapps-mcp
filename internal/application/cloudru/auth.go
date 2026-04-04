@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/config"
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/domain"
@@ -14,8 +16,11 @@ import (
 
 // AuthApplication implements the AuthService interface
 type AuthApplication struct {
-	creds domain.Credentials
-	cfg   *config.Config
+	creds       domain.Credentials
+	cfg         *config.Config
+	cachedToken string
+	tokenExpiry time.Time
+	mu          sync.RWMutex
 }
 
 // NewAuthApplication creates a new AuthApplication
@@ -33,7 +38,17 @@ func NewAuthApplication(cfg *config.Config) domain.AuthService {
 // This method requires the following environment variables to be set:
 // - CLOUDRU_KEY_ID: Service account key ID
 // - CLOUDRU_KEY_SECRET: Service account key secret
+// The token is cached for 5 minutes to reduce API calls
 func (a *AuthApplication) GetAccessToken() (string, error) {
+	// Check if we have a valid cached token
+	a.mu.RLock()
+	if a.cachedToken != "" && time.Now().Before(a.tokenExpiry) {
+		token := a.cachedToken
+		a.mu.RUnlock()
+		return token, nil
+	}
+	a.mu.RUnlock()
+
 	// Validate that required credentials are present
 	if a.creds.KeyID == "" || a.creds.KeySecret == "" {
 		return "", fmt.Errorf("CLOUDRU_KEY_ID and CLOUDRU_KEY_SECRET environment variables are required for authentication. Please set these variables in your environment")
@@ -81,6 +96,14 @@ func (a *AuthApplication) GetAccessToken() (string, error) {
 	if err := json.Unmarshal(body, &result); err != nil {
 		return "", fmt.Errorf("failed to parse token response: %w body length: %d body: %s", err, len(body), string(body))
 	}
+
+	// Cache the token for 5 minutes
+	a.mu.Lock()
+	a.cachedToken = result.AccessToken
+	a.tokenExpiry = time.Now().Add(5 * time.Minute)
+	a.mu.Unlock()
+
+	log.Printf("GetAccessToken - new token cached (expires at %s)", a.tokenExpiry.Format(time.RFC3339))
 
 	return result.AccessToken, nil
 }

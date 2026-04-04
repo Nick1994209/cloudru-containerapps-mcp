@@ -12,9 +12,9 @@ type MCPServer struct {
 }
 
 // NewMCPServer creates a new MCP server with the required services
-func NewMCPServer(descriptionService domain.DescriptionService, dockerService domain.DockerService, containerAppsService domain.ContainerAppsService, dockerRegistryService domain.ArtifactRegistryService) *MCPServer {
+func NewMCPServer(descriptionService domain.DescriptionService, dockerService domain.DockerService, containerAppsService domain.ContainerAppsService, dockerRegistryService domain.ArtifactRegistryService, jobsService domain.JobsService) *MCPServer {
 	return &MCPServer{
-		MCPServer: handlers.NewMCPServer(descriptionService, dockerService, containerAppsService, dockerRegistryService),
+		MCPServer: handlers.NewMCPServer(descriptionService, dockerService, containerAppsService, dockerRegistryService, jobsService),
 	}
 }
 
@@ -91,6 +91,26 @@ func (s *MCPServer) RegisterGetListDockerRegistriesTool(mcpServer *server.MCPSer
 // RegisterCreateDockerRegistryTool registers the create docker registry tool with the MCP server
 func (s *MCPServer) RegisterCreateDockerRegistryTool(mcpServer *server.MCPServer) {
 	s.MCPServer.RegisterCreateDockerRegistryTool(mcpServer)
+}
+
+// RegisterGetListJobsTool registers the get list jobs tool with the MCP server
+func (s *MCPServer) RegisterGetListJobsTool(mcpServer *server.MCPServer) {
+	s.MCPServer.RegisterGetListJobsTool(mcpServer)
+}
+
+// RegisterGetJobTool registers the get job tool with the MCP server
+func (s *MCPServer) RegisterGetJobTool(mcpServer *server.MCPServer) {
+	s.MCPServer.RegisterGetJobTool(mcpServer)
+}
+
+// RegisterExecuteJobTool registers the execute job tool with the MCP server
+func (s *MCPServer) RegisterExecuteJobTool(mcpServer *server.MCPServer) {
+	s.MCPServer.RegisterExecuteJobTool(mcpServer)
+}
+
+// RegisterGetListExecutionsTool registers the get list executions tool with the MCP server
+func (s *MCPServer) RegisterGetListExecutionsTool(mcpServer *server.MCPServer) {
+	s.MCPServer.RegisterGetListExecutionsTool(mcpServer)
 }
 
 // RegisterGetRegistryImagesTool registers the get registry images tool with the MCP server
