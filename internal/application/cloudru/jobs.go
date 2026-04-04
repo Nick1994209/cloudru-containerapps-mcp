@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/config"
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/domain"
@@ -127,8 +126,8 @@ func (j *JobsApplication) CreateJob(request domain.CreateJobRequest) (*domain.Op
 	}
 
 	// Map CPU to memory
-	cpu, memory := j.parseCPU(request.JobCPU)
-	envVars := j.parseEnvironmentVariables(request.JobEnvironmentVariables)
+	cpu, memory := utils.ParseCPU(request.JobCPU)
+	envVars := utils.ParseEnvironmentVariables(request.JobEnvironmentVariables)
 
 	// Prepare request body according to swagger spec
 	requestBody := map[string]interface{}{
@@ -394,55 +393,6 @@ func (j *JobsApplication) getJobRaw(projectID string, jobName string) ([]byte, e
 	return body, nil
 }
 
-// parseEnvironmentVariables parses environment variables from format <name>='<value>';<next_name>='value2'
-func (j *JobsApplication) parseEnvironmentVariables(environmentVariables string) []map[string]interface{} {
-	var envVars []map[string]interface{}
-	if environmentVariables != "" {
-		// Split by semicolon
-		variables := strings.Split(environmentVariables, ";")
-		for _, variable := range variables {
-			// Split by first equals sign
-			parts := strings.SplitN(variable, "=", 2)
-			if len(parts) == 2 {
-				name := strings.TrimSpace(parts[0])
-				value := strings.TrimSpace(parts[1])
-				// Remove quotes if present
-				if strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") {
-					value = value[1 : len(value)-1]
-				}
-				envVars = append(envVars, map[string]interface{}{
-					"name":  name,
-					"value": value,
-				})
-			}
-		}
-	}
-	return envVars
-}
-
-// parseCPU maps CPU allocation to memory allocation
-func (j *JobsApplication) parseCPU(cpu string) (string, string) {
-	var memory string
-	switch cpu {
-	case "0.1":
-		memory = "256Mi"
-	case "0.2":
-		memory = "512Mi"
-	case "0.3":
-		memory = "768Mi"
-	case "0.5":
-		memory = "1024Mi"
-	case "1":
-		memory = "4096Mi"
-	default:
-		// Default to 0.1 CPU and 256Mi memory for unknown values
-		cpu = "0.1"
-		memory = "256Mi"
-	}
-
-	return cpu, memory
-}
-
 // PatchJob patches a Job in Cloud.ru
 func (j *JobsApplication) PatchJob(projectID string, jobName string, updateRequest domain.PatchJobRequest) (*domain.Operation, error) {
 	// First, get the current job state
@@ -457,124 +407,92 @@ func (j *JobsApplication) PatchJob(projectID string, jobName string, updateReque
 		return nil, fmt.Errorf("failed to parse current job state for project %s and job %s: %w", projectID, jobName, err)
 	}
 
+	// Update description if provided
+	if updateRequest.JobDescription != nil {
+		currentJobMap["description"] = *updateRequest.JobDescription
+	}
+
+	// Update runImmediately if provided
+	if updateRequest.JobRunImmediately != nil {
+		currentJobMap["runImmediately"] = *updateRequest.JobRunImmediately
+	}
+
+	// Update configuration section
+	if updateRequest.JobPrivileged != nil {
+		if config, ok := currentJobMap["configuration"].(map[string]interface{}); ok {
+			config["privileged"] = *updateRequest.JobPrivileged
+		} else {
+			currentJobMap["configuration"] = map[string]interface{}{
+				"privileged": *updateRequest.JobPrivileged,
+			}
+		}
+	}
+
 	// Use environment variables directly (already parsed)
 	var envVars []map[string]interface{}
 	if updateRequest.JobEnvironmentVariables != nil {
-		envVars = j.parseEnvironmentVariables(*updateRequest.JobEnvironmentVariables)
+		envVars = utils.ParseEnvironmentVariables(*updateRequest.JobEnvironmentVariables)
 	}
 
 	// Map CPU to memory if provided
 	var cpu, memory *string
 	if updateRequest.JobCPU != nil && *updateRequest.JobCPU != "" {
-		cpuVal, memoryVal := j.parseCPU(*updateRequest.JobCPU)
+		cpuVal, memoryVal := utils.ParseCPU(*updateRequest.JobCPU)
 		cpu = &cpuVal
 		memory = &memoryVal
 	}
 
-	// Prepare the new payload - only include fields that are being updated
-	newPayload := map[string]interface{}{}
-
-	// Add description if provided
-	if updateRequest.JobDescription != nil {
-		newPayload["description"] = *updateRequest.JobDescription
-	}
-
-	// Add runImmediately if provided
-	if updateRequest.JobRunImmediately != nil {
-		newPayload["runImmediately"] = *updateRequest.JobRunImmediately
-	}
-
-	// Build configuration section
-	configSection := map[string]interface{}{}
-	if updateRequest.JobPrivileged != nil {
-		configSection["privileged"] = *updateRequest.JobPrivileged
-	}
-	if len(configSection) > 0 {
-		newPayload["configuration"] = configSection
-	}
-
-	// Build template section
-	templateSection := map[string]interface{}{}
-
-	// Build template section with timeout and retry count
-	if updateRequest.JobExecutionTimeout != nil {
-		templateSection["timeout"] = *updateRequest.JobExecutionTimeout
-	}
-	if updateRequest.JobRetryCount != nil {
-		templateSection["maxRetries"] = *updateRequest.JobRetryCount
-	}
-
-	// Build container section - start with existing container data
-	containerSection := map[string]interface{}{}
-
-	// Extract entire container from current job to preserve all fields
+	// Update template section
 	if template, ok := currentJobMap["template"].(map[string]interface{}); ok {
+		// Update timeout if provided
+		if updateRequest.JobExecutionTimeout != nil {
+			template["timeout"] = *updateRequest.JobExecutionTimeout
+		}
+
+		// Update maxRetries if provided
+		if updateRequest.JobRetryCount != nil {
+			template["maxRetries"] = *updateRequest.JobRetryCount
+		}
+
+		// Update container section
 		if containers, ok := template["containers"].([]interface{}); ok && len(containers) > 0 {
 			if container, ok := containers[0].(map[string]interface{}); ok {
-				// Copy all existing container fields
-				for k, v := range container {
-					containerSection[k] = v
+				// Update image if provided
+				if updateRequest.JobImage != nil {
+					container["image"] = *updateRequest.JobImage
+				}
+
+				// Update resources if provided
+				if cpu != nil && memory != nil {
+					container["resources"] = map[string]string{
+						"cpu":    *cpu,
+						"memory": *memory,
+					}
+				}
+
+				// Update environment variables if provided
+				if len(envVars) > 0 {
+					container["env"] = envVars
+				}
+
+				// Update command if provided
+				if len(updateRequest.JobCommand) > 0 {
+					container["command"] = updateRequest.JobCommand
+				}
+
+				// Update args if provided
+				if len(updateRequest.JobArgs) > 0 {
+					container["args"] = updateRequest.JobArgs
 				}
 			}
 		}
 	}
 
-	// Update image if explicitly provided in the update request
-	if updateRequest.JobImage != nil {
-		containerSection["image"] = *updateRequest.JobImage
-	}
-
-	// Update resources if provided
-	if cpu != nil && memory != nil {
-		containerSection["resources"] = map[string]string{
-			"cpu":    *cpu,
-			"memory": *memory,
-		}
-	}
-	// Update environment variables if provided
-	if len(envVars) > 0 {
-		containerSection["env"] = envVars
-	}
-	// Update command if provided
-	if len(updateRequest.JobCommand) > 0 {
-		containerSection["command"] = updateRequest.JobCommand
-	}
-	// Update args if provided
-	if len(updateRequest.JobArgs) > 0 {
-		containerSection["args"] = updateRequest.JobArgs
-	}
-	if len(containerSection) > 0 {
-		templateSection["containers"] = []map[string]interface{}{containerSection}
-	}
-
-	if len(templateSection) > 0 {
-		newPayload["template"] = templateSection
-	}
-
 	// Convert payload to JSON
-	jsonPayloanewPayload1, err := json.Marshal(newPayload)
+	jsonPayload, err := json.Marshal(currentJobMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal payload for project %s and job %s: %w", projectID, jobName, err)
 	}
-	// Convert payload to JSON
-	jsonPayloanewcurrentJobMap, err := json.Marshal(currentJobMap)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal payload for project %s and job %s: %w", projectID, jobName, err)
-	}
-
-	fmt.Println(string(jsonPayloanewPayload1))
-	fmt.Println(string(jsonPayloanewcurrentJobMap))
-
-	// Merge new payload with old data (deep merge)
-	mergedPayload := utils.DeepMerge(newPayload, currentJobMap)
-
-	// Convert payload to JSON
-	jsonPayload, err := json.Marshal(mergedPayload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal payload for project %s and job %s: %w", projectID, jobName, err)
-	}
-
-	fmt.Println("PATCH: %s body=%s", fmt.Sprintf("%s/v2/jobs/%s?projectId=%s", j.cfg.API.ContainersAPI, jobName, projectID), string(jsonPayload))
 
 	// Make PATCH request to Jobs API
 	url := fmt.Sprintf("%s/v2/jobs/%s?projectId=%s", j.cfg.API.ContainersAPI, jobName, projectID)

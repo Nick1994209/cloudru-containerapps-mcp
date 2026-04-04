@@ -123,59 +123,10 @@ func (c *ContainerAppsApplication) GetContainerApp(projectID string, containerAp
 	// Parse response
 	var containerApp domain.ContainerApp
 	if err := json.Unmarshal(rawBody, &containerApp); err != nil {
-		return nil, fmt.Errorf("failed to parse containerapp response: %w body length: %d body: %s", err, len(rawBody), string(rawBody))
+		return nil, fmt.Errorf("failed to parse containerapp response for '%s': %w body length: %d body: %s", containerAppName, err, len(rawBody), string(rawBody))
 	}
 
 	return &containerApp, nil
-}
-
-// parseEnvironmentVariables parses environment variables from format <name>='<value>';<next_name>='value2'
-func (c *ContainerAppsApplication) parseEnvironmentVariables(environmentVariables string) []map[string]interface{} {
-	var envVars []map[string]interface{}
-	if environmentVariables != "" {
-		// Split by semicolon
-		variables := strings.Split(environmentVariables, ";")
-		for _, variable := range variables {
-			// Split by first equals sign
-			parts := strings.SplitN(variable, "=", 2)
-			if len(parts) == 2 {
-				name := strings.TrimSpace(parts[0])
-				value := strings.TrimSpace(parts[1])
-				// Remove quotes if present
-				if strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") {
-					value = value[1 : len(value)-1]
-				}
-				envVars = append(envVars, map[string]interface{}{
-					"name":  name,
-					"value": value,
-				})
-			}
-		}
-	}
-	return envVars
-}
-
-// parseCPU maps CPU allocation to memory allocation
-func (c *ContainerAppsApplication) parseCPU(cpu string) (string, string) {
-	var memory string
-	switch cpu {
-	case "0.1":
-		memory = "256Mi"
-	case "0.2":
-		memory = "512Mi"
-	case "0.3":
-		memory = "768Mi"
-	case "0.5":
-		memory = "1024Mi"
-	case "1":
-		memory = "4096Mi"
-	default:
-		// Default to 0.1 CPU and 256Mi memory for unknown values
-		cpu = "0.1"
-		memory = "256Mi"
-	}
-
-	return cpu, memory
 }
 
 // CreateContainerApp creates a new ContainerApp in Cloud.ru
@@ -218,10 +169,10 @@ func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateConta
 	}
 
 	// Parse environment variables
-	envVars := c.parseEnvironmentVariables(environmentVariables)
+	envVars := utils.ParseEnvironmentVariables(environmentVariables)
 
 	// Map CPU to memory
-	cpu, memory := c.parseCPU(cpu)
+	cpu, memory := utils.ParseCPU(cpu)
 
 	// Prepare the request payload
 	payload := map[string]interface{}{
@@ -309,7 +260,7 @@ func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateConta
 	// Create and return an Operation object by parsing the response body
 	var response domain.Operation
 	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse container app operation response: %w body length: %d body: %s", err, len(body), string(body))
+		return nil, fmt.Errorf("failed to parse container app operation response for '%s': %w body length: %d body: %s", containerAppName, err, len(body), string(body))
 	}
 
 	return &response, nil
@@ -354,7 +305,7 @@ func (c *ContainerAppsApplication) DeleteContainerApp(projectID string, containe
 	// Create and return an Operation object by parsing the response body
 	var response domain.Operation
 	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse container app operation response: %w body length: %d body: %s", err, len(body), string(body))
+		return nil, fmt.Errorf("failed to parse container app operation response for '%s': %w body length: %d body: %s", containerAppName, err, len(body), string(body))
 	}
 
 	return &response, nil
@@ -398,7 +349,7 @@ func (c *ContainerAppsApplication) StartContainerApp(projectID string, container
 	// Create and return an Operation object by parsing the response body
 	var response domain.Operation
 	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse container app operation response: %w body length: %d body: %s", err, len(body), string(body))
+		return nil, fmt.Errorf("failed to parse container app operation response for '%s': %w body length: %d body: %s", containerAppName, err, len(body), string(body))
 	}
 
 	return &response, nil
@@ -441,7 +392,7 @@ func (c *ContainerAppsApplication) StopContainerApp(projectID string, containerA
 
 	var response domain.Operation
 	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse container app operation response: %w body length: %d body: %s", err, len(body), string(body))
+		return nil, fmt.Errorf("failed to parse container app operation response for '%s': %w body length: %d body: %s", containerAppName, err, len(body), string(body))
 	}
 
 	return &response, nil
@@ -483,7 +434,7 @@ func (c *ContainerAppsApplication) GetContainerAppLogs(projectID string, contain
 	// Parse response as a wrapper object containing a slice of ContainerAppLogEntry
 	var response domain.ContainerAppLogs
 	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse container app logs response: %w body length: %d body: %s", err, len(body), string(body))
+		return nil, fmt.Errorf("failed to parse container app logs response for '%s': %w body length: %d body: %s", containerAppName, err, len(body), string(body))
 	}
 
 	return &response, nil
@@ -525,7 +476,7 @@ func (c *ContainerAppsApplication) GetContainerAppSystemLogs(projectID string, c
 	// Parse response as a wrapper object containing a slice of ContainerAppSystemLogEntry
 	var response domain.ContainerAppSystemLogs
 	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse container app system logs response: %w body length: %d body: %s", err, len(body), string(body))
+		return nil, fmt.Errorf("failed to parse container app system logs response for '%s': %w body length: %d body: %s", containerAppName, err, len(body), string(body))
 	}
 
 	return &response, nil
@@ -536,139 +487,148 @@ func (c *ContainerAppsApplication) PatchContainerApp(projectID string, container
 	// First, get the current container app state
 	rawBody, err := c.getContainerAppRaw(projectID, containerAppName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get current container app state: %w", err)
+		return nil, fmt.Errorf("failed to get current container app state for '%s': %w", containerAppName, err)
 	}
 
 	// Parse the current state
 	var currentContainerApp map[string]interface{}
 	if err := json.Unmarshal(rawBody, &currentContainerApp); err != nil {
-		return nil, fmt.Errorf("failed to parse current container app state: %w", err)
+		return nil, fmt.Errorf("failed to parse current container app state for '%s': %w", containerAppName, err)
 	}
 
 	// Use environment variables directly (already parsed)
 	var envVars []map[string]interface{}
 	if updateRequest.EnvironmentVariables != nil {
-		envVars = c.parseEnvironmentVariables(*updateRequest.EnvironmentVariables)
+		envVars = utils.ParseEnvironmentVariables(*updateRequest.EnvironmentVariables)
 	}
 
 	// Map CPU to memory if provided
 	var cpu, memory *string
 	if updateRequest.CPU != nil && *updateRequest.CPU != "" {
-		cpuVal, memoryVal := c.parseCPU(*updateRequest.CPU)
+		cpuVal, memoryVal := utils.ParseCPU(*updateRequest.CPU)
 		cpu = &cpuVal
 		memory = &memoryVal
 	}
 
-	// Prepare the new payload - only include fields that are being updated
-	newPayload := map[string]interface{}{}
-
-	// Add description if provided
+	// Update description if provided
 	if updateRequest.Description != nil {
-		newPayload["description"] = *updateRequest.Description
+		currentContainerApp["description"] = *updateRequest.Description
 	}
 
-	// Build configuration section
-	configSection := map[string]interface{}{}
+	// Update configuration section
 	if updateRequest.PubliclyAccessible != nil {
-		configSection["ingress"] = map[string]interface{}{
-			"publiclyAccessible": *updateRequest.PubliclyAccessible,
-		}
-	}
-	if updateRequest.AutoDeploymentsEnabled != nil || updateRequest.AutoDeploymentsPattern != nil {
-		autoDeployments := map[string]interface{}{}
-		if updateRequest.AutoDeploymentsEnabled != nil {
-			autoDeployments["enabled"] = *updateRequest.AutoDeploymentsEnabled
-		}
-		if updateRequest.AutoDeploymentsPattern != nil {
-			autoDeployments["pattern"] = *updateRequest.AutoDeploymentsPattern
-		}
-		configSection["autoDeployments"] = autoDeployments
-	}
-	if len(configSection) > 0 {
-		newPayload["configuration"] = configSection
-	}
-
-	// Build template section
-	templateSection := map[string]interface{}{}
-	if updateRequest.Timeout != nil {
-		templateSection["timeout"] = *updateRequest.Timeout
-	}
-	if updateRequest.IdleTimeout != nil {
-		templateSection["idleTimeout"] = *updateRequest.IdleTimeout
-	}
-	if updateRequest.Protocol != nil {
-		templateSection["protocol"] = *updateRequest.Protocol
-	}
-
-	// Build scaling section
-	if updateRequest.MinInstanceCount != nil || updateRequest.MaxInstanceCount != nil {
-		scaling := map[string]interface{}{}
-		if updateRequest.MinInstanceCount != nil {
-			scaling["minInstanceCount"] = *updateRequest.MinInstanceCount
-		}
-		if updateRequest.MaxInstanceCount != nil {
-			scaling["maxInstanceCount"] = *updateRequest.MaxInstanceCount
-		}
-		templateSection["scaling"] = scaling
-	}
-
-	// Build container section
-	containerSection := map[string]interface{}{}
-
-	// Always include the current image and port if we're updating any container fields
-	if updateRequest.ContainerAppImage != nil || cpu != nil || updateRequest.ContainerAppPort != nil || len(envVars) > 0 || len(updateRequest.Command) > 0 || len(updateRequest.Args) > 0 {
-		if updateRequest.ContainerAppImage != nil {
-			containerSection["image"] = *updateRequest.ContainerAppImage
-		}
-
-		// If port is not provided in the update, preserve the existing port from current state
-		if updateRequest.ContainerAppPort != nil {
-			containerSection["containerPort"] = *updateRequest.ContainerAppPort
+		if config, ok := currentContainerApp["configuration"].(map[string]interface{}); ok {
+			if ingress, ok := config["ingress"].(map[string]interface{}); ok {
+				ingress["publiclyAccessible"] = *updateRequest.PubliclyAccessible
+			} else {
+				config["ingress"] = map[string]interface{}{
+					"publiclyAccessible": *updateRequest.PubliclyAccessible,
+				}
+			}
 		} else {
-			// Extract the existing port from the current container app state
-			if template, ok := currentContainerApp["template"].(map[string]interface{}); ok {
-				if containers, ok := template["containers"].([]interface{}); ok && len(containers) > 0 {
-					if container, ok := containers[0].(map[string]interface{}); ok {
-						if port, ok := container["containerPort"]; ok {
-							containerSection["containerPort"] = port
-						}
+			currentContainerApp["configuration"] = map[string]interface{}{
+				"ingress": map[string]interface{}{
+					"publiclyAccessible": *updateRequest.PubliclyAccessible,
+				},
+			}
+		}
+	}
+
+	if updateRequest.AutoDeploymentsEnabled != nil || updateRequest.AutoDeploymentsPattern != nil {
+		if config, ok := currentContainerApp["configuration"].(map[string]interface{}); ok {
+			if autoDeployments, ok := config["autoDeployments"].(map[string]interface{}); ok {
+				if updateRequest.AutoDeploymentsEnabled != nil {
+					autoDeployments["enabled"] = *updateRequest.AutoDeploymentsEnabled
+				}
+				if updateRequest.AutoDeploymentsPattern != nil {
+					autoDeployments["pattern"] = *updateRequest.AutoDeploymentsPattern
+				}
+			} else {
+				autoDeployments := map[string]interface{}{}
+				if updateRequest.AutoDeploymentsEnabled != nil {
+					autoDeployments["enabled"] = *updateRequest.AutoDeploymentsEnabled
+				}
+				if updateRequest.AutoDeploymentsPattern != nil {
+					autoDeployments["pattern"] = *updateRequest.AutoDeploymentsPattern
+				}
+				config["autoDeployments"] = autoDeployments
+			}
+		} // else not required, configuration should exists in body
+	}
+
+	// Update template section
+	if template, ok := currentContainerApp["template"].(map[string]interface{}); ok {
+		// Update timeout if provided
+		if updateRequest.Timeout != nil {
+			template["timeout"] = *updateRequest.Timeout
+		}
+
+		// Update idleTimeout if provided
+		if updateRequest.IdleTimeout != nil {
+			template["idleTimeout"] = *updateRequest.IdleTimeout
+		}
+
+		// Update protocol if provided
+		if updateRequest.Protocol != nil {
+			template["protocol"] = *updateRequest.Protocol
+		}
+
+		// Update scaling section
+		if updateRequest.MinInstanceCount != nil || updateRequest.MaxInstanceCount != nil {
+			if scaling, ok := template["scaling"].(map[string]interface{}); ok {
+				if updateRequest.MinInstanceCount != nil {
+					scaling["minInstanceCount"] = *updateRequest.MinInstanceCount
+				}
+				if updateRequest.MaxInstanceCount != nil {
+					scaling["maxInstanceCount"] = *updateRequest.MaxInstanceCount
+				}
+			} // else not required, scaling should exists in template
+		}
+
+		// Update container section
+		if containers, ok := template["containers"].([]interface{}); ok && len(containers) > 0 {
+			if container, ok := containers[0].(map[string]interface{}); ok {
+				// Update image if provided
+				if updateRequest.ContainerAppImage != nil {
+					container["image"] = *updateRequest.ContainerAppImage
+				}
+
+				// Update containerPort if provided
+				if updateRequest.ContainerAppPort != nil {
+					container["containerPort"] = *updateRequest.ContainerAppPort
+				}
+
+				// Update resources if provided
+				if cpu != nil && memory != nil {
+					container["resources"] = map[string]string{
+						"cpu":    *cpu,
+						"memory": *memory,
 					}
+				}
+
+				// Update environment variables if provided
+				if len(envVars) > 0 {
+					container["env"] = envVars
+				}
+
+				// Update command if provided
+				if len(updateRequest.Command) > 0 {
+					container["command"] = updateRequest.Command
+				}
+
+				// Update args if provided
+				if len(updateRequest.Args) > 0 {
+					container["args"] = updateRequest.Args
 				}
 			}
 		}
 	}
-	if cpu != nil && memory != nil {
-		containerSection["resources"] = map[string]string{
-			"cpu":    *cpu,
-			"memory": *memory,
-		}
-	}
-	if len(envVars) > 0 {
-		containerSection["env"] = envVars
-	}
-	if len(updateRequest.Command) > 0 {
-		containerSection["command"] = updateRequest.Command
-	}
-	if len(updateRequest.Args) > 0 {
-		containerSection["args"] = updateRequest.Args
-	}
-	if len(containerSection) > 0 {
-		templateSection["containers"] = []map[string]interface{}{containerSection}
-	}
-
-	if len(templateSection) > 0 {
-		newPayload["template"] = templateSection
-	}
-
-	// Merge new payload with old data (deep merge)
-	mergedPayload := utils.DeepMerge(newPayload, currentContainerApp)
 
 	// Convert payload to JSON
-	jsonPayload, err := json.Marshal(mergedPayload)
+	jsonPayload, err := json.Marshal(currentContainerApp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal payload: %w", err)
 	}
-	fmt.Printf("NEW Payload %s", string(jsonPayload))
 
 	// Make PATCH request to ContainerApps API
 	url := fmt.Sprintf("%s/v2/containers/%s?projectId=%s", c.cfg.API.ContainersAPI, containerAppName, projectID)
@@ -708,7 +668,7 @@ func (c *ContainerAppsApplication) PatchContainerApp(projectID string, container
 	// Create and return an Operation object by parsing the response body
 	var response domain.Operation
 	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse container app operation response: %w body length: %d body: %s", err, len(body), string(body))
+		return nil, fmt.Errorf("failed to parse container app operation response for '%s': %w body length: %d body: %s", containerAppName, err, len(body), string(body))
 	}
 
 	return &response, nil
