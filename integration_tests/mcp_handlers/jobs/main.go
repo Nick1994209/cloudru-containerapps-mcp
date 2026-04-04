@@ -45,11 +45,11 @@ func main() {
 
 	// Patch the first created job
 	if len(createdJobs) > 0 {
-		// testGetJob(cfg, createdJobs[0])
-		// testExecuteJob(cfg, createdJobs[0])
-		// testListJobExecutions(cfg, createdJobs[0])
+		testGetJob(cfg, createdJobs[0])
+		testExecuteJob(cfg, createdJobs[0])
+		testListJobExecutions(cfg, createdJobs[0])
 		testPatchJob(cfg, createdJobs[0])
-		// testDeleteJob(cfg, createdJobs)
+		testDeleteJob(cfg, createdJobs)
 	}
 
 	log.Println("=== All Jobs Integration Tests Completed ===")

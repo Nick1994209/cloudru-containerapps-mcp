@@ -26,21 +26,19 @@ func NewJobsApplication(cfg *config.Config) domain.JobsService {
 	}
 }
 
-// GetListJobs gets a list of Jobs from Cloud.ru API
-func (j *JobsApplication) GetListJobs(projectID string, pageSize string) ([]domain.Job, error) {
+// makeHTTPRequest makes an HTTP request to the Cloud.ru API
+func (j *JobsApplication) makeHTTPRequest(method, url string, body []byte) ([]byte, error) {
 	token, err := j.authService.GetAccessToken()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
 
-	// Set default pageSize to 100 if not provided
-	if pageSize == "" {
-		pageSize = "100"
+	var bodyReader io.Reader
+	if body != nil {
+		bodyReader = bytes.NewBuffer(body)
 	}
 
-	// Make request to Jobs API
-	url := fmt.Sprintf("%s/v2/jobs?projectId=%s&pageSize=%s", j.cfg.API.ContainersAPI, projectID, pageSize)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -55,13 +53,30 @@ func (j *JobsApplication) GetListJobs(projectID string, pageSize string) ([]doma
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(responseBody))
+	}
+
+	return responseBody, nil
+}
+
+// GetListJobs gets a list of Jobs from Cloud.ru API
+func (j *JobsApplication) GetListJobs(projectID string, pageSize string) ([]domain.Job, error) {
+	// Set default pageSize to 100 if not provided
+	if pageSize == "" {
+		pageSize = "100"
+	}
+
+	// Make request to Jobs API
+	url := fmt.Sprintf("%s/v2/jobs?projectId=%s&pageSize=%s", j.cfg.API.ContainersAPI, projectID, pageSize)
+	body, err := j.makeHTTPRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
 	}
 
 	// Parse response as a wrapper object containing a slice of Job
@@ -78,35 +93,11 @@ func (j *JobsApplication) GetListJobs(projectID string, pageSize string) ([]doma
 
 // GetJob gets a specific Job from Cloud.ru API by name
 func (j *JobsApplication) GetJob(projectID string, jobName string) (*domain.Job, error) {
-	token, err := j.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
 	// Make request to Jobs API
 	url := fmt.Sprintf("%s/v2/jobs/%s?projectId=%s", j.cfg.API.ContainersAPI, jobName, projectID)
-	req, err := http.NewRequest("GET", url, nil)
+	body, err := j.makeHTTPRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Parse response as a Job
@@ -120,11 +111,6 @@ func (j *JobsApplication) GetJob(projectID string, jobName string) (*domain.Job,
 
 // CreateJob creates a new Job in Cloud.ru
 func (j *JobsApplication) CreateJob(request domain.CreateJobRequest) (*domain.Operation, error) {
-	token, err := j.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
 	// Map CPU to memory
 	cpu, memory := utils.ParseCPU(request.JobCPU)
 	envVars := utils.ParseEnvironmentVariables(request.JobEnvironmentVariables)
@@ -154,7 +140,6 @@ func (j *JobsApplication) CreateJob(request domain.CreateJobRequest) (*domain.Op
 			},
 		},
 	}
-
 	if containers, ok := requestBody["template"].(map[string]interface{})["containers"].([]map[string]interface{}); ok && len(containers) > 0 {
 		if len(request.JobCommand) > 0 {
 			containers[0]["command"] = request.JobCommand
@@ -171,28 +156,9 @@ func (j *JobsApplication) CreateJob(request domain.CreateJobRequest) (*domain.Op
 
 	// Make request to Jobs API
 	url := fmt.Sprintf("%s/v2/jobs", j.cfg.API.ContainersAPI)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	body, err := j.makeHTTPRequest("POST", url, jsonBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Parse response as an Operation
@@ -206,35 +172,11 @@ func (j *JobsApplication) CreateJob(request domain.CreateJobRequest) (*domain.Op
 
 // DeleteJob deletes a specific Job from Cloud.ru
 func (j *JobsApplication) DeleteJob(projectID string, jobName string) (*domain.Operation, error) {
-	token, err := j.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
 	// Make request to Jobs API
 	url := fmt.Sprintf("%s/v2/jobs/%s?projectId=%s", j.cfg.API.ContainersAPI, jobName, projectID)
-	req, err := http.NewRequest("DELETE", url, nil)
+	body, err := j.makeHTTPRequest("DELETE", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Parse response as an Operation
@@ -248,11 +190,6 @@ func (j *JobsApplication) DeleteJob(projectID string, jobName string) (*domain.O
 
 // ExecuteJob executes a specific Job in Cloud.ru
 func (j *JobsApplication) ExecuteJob(projectID string, jobName string, params map[string]interface{}) (*domain.JobExecution, error) {
-	token, err := j.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
 	// Prepare request body
 	requestBody := map[string]interface{}{
 		"projectId": projectID,
@@ -267,28 +204,9 @@ func (j *JobsApplication) ExecuteJob(projectID string, jobName string, params ma
 
 	// Make request to Jobs API
 	url := fmt.Sprintf("%s/v2/jobs/%s:execute", j.cfg.API.ContainersAPI, jobName)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	body, err := j.makeHTTPRequest("POST", url, jsonBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Parse response as a JobExecution
@@ -302,11 +220,6 @@ func (j *JobsApplication) ExecuteJob(projectID string, jobName string, params ma
 
 // GetListExecutions gets a list of Job Executions from Cloud.ru API
 func (j *JobsApplication) GetListExecutions(projectID string, jobName string, pageSize string) ([]domain.JobExecution, error) {
-	token, err := j.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
 	// Set default pageSize to 100 if not provided
 	if pageSize == "" {
 		pageSize = "100"
@@ -316,28 +229,9 @@ func (j *JobsApplication) GetListExecutions(projectID string, jobName string, pa
 	url := fmt.Sprintf("%s/v2/jobs/%s/executions?projectId=%s&pageSize=%s", j.cfg.API.ContainersAPI, jobName, projectID, pageSize)
 
 	// Make request to Jobs API
-	req, err := http.NewRequest("GET", url, nil)
+	body, err := j.makeHTTPRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Parse response as a wrapper object containing a slice of JobExecution
@@ -354,40 +248,16 @@ func (j *JobsApplication) GetListExecutions(projectID string, jobName string, pa
 
 // getJobRaw gets the raw response body from the Jobs API
 func (j *JobsApplication) getJobRaw(projectID string, jobName string) ([]byte, error) {
-	token, err := j.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
 	// Make request to Jobs API
 	url := fmt.Sprintf("%s/v2/jobs/%s?projectId=%s", j.cfg.API.ContainersAPI, jobName, projectID)
-	req, err := http.NewRequest("GET", url, nil)
+	body, err := j.makeHTTPRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Check if body is empty
 	if len(body) == 0 {
-		return nil, fmt.Errorf("API returned empty response body with status %d for project %s and job %s", resp.StatusCode, projectID, jobName)
+		return nil, fmt.Errorf("API returned empty response body for project %s and job %s", projectID, jobName)
 	}
 
 	return body, nil
@@ -496,37 +366,14 @@ func (j *JobsApplication) PatchJob(projectID string, jobName string, updateReque
 
 	// Make PATCH request to Jobs API
 	url := fmt.Sprintf("%s/v2/jobs/%s?projectId=%s", j.cfg.API.ContainersAPI, jobName, projectID)
-	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonPayload))
+	body, err := j.makeHTTPRequest("PATCH", url, jsonPayload)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	token, err := j.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Check if body is empty
 	if len(body) == 0 {
-		return nil, fmt.Errorf("API returned empty response body with status %d for project %s and job %s", resp.StatusCode, projectID, jobName)
+		return nil, fmt.Errorf("API returned empty response body for project %s and job %s", projectID, jobName)
 	}
 
 	// Create and return an Operation object by parsing the response body

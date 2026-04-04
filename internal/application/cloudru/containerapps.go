@@ -1,11 +1,11 @@
 package cloudru
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/config"
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/domain"
@@ -26,16 +26,20 @@ func NewContainerAppsApplication(cfg *config.Config) domain.ContainerAppsService
 	}
 }
 
-// GetListContainerApps gets a list of ContainerApps from Cloud.ru API
-func (c *ContainerAppsApplication) GetListContainerApps(projectID string) ([]domain.ContainerApp, error) {
+// makeHTTPRequest makes an HTTP request to the Cloud.ru API
+func (c *ContainerAppsApplication) makeHTTPRequest(method, path string, body []byte) ([]byte, error) {
 	token, err := c.authService.GetAccessToken()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
 
-	// Make request to ContainerApps API
-	url := fmt.Sprintf("%s/v1/containers?projectId=%s", c.cfg.API.ContainersAPI, projectID)
-	req, err := http.NewRequest("GET", url, nil)
+	var bodyReader io.Reader
+	if body != nil {
+		bodyReader = bytes.NewBuffer(body)
+	}
+
+	url := c.cfg.API.ContainersAPI + path
+	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -50,13 +54,26 @@ func (c *ContainerAppsApplication) GetListContainerApps(projectID string) ([]dom
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
+	// Check if status code is 200
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(responseBody))
+	}
+
+	return responseBody, nil
+}
+
+// GetListContainerApps gets a list of ContainerApps from Cloud.ru API
+func (c *ContainerAppsApplication) GetListContainerApps(projectID string) ([]domain.ContainerApp, error) {
+	// Make request to ContainerApps API
+	path := fmt.Sprintf("/v1/containers?projectId=%s", projectID)
+	body, err := c.makeHTTPRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
 	}
 
 	// Parse response as a wrapper object containing a slice of ContainerApp
@@ -73,40 +90,16 @@ func (c *ContainerAppsApplication) GetListContainerApps(projectID string) ([]dom
 
 // getContainerAppRaw gets the raw response body from the ContainerApps API
 func (c *ContainerAppsApplication) getContainerAppRaw(projectID string, containerAppName string) ([]byte, error) {
-	token, err := c.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
 	// Make request to ContainerApps API
-	url := fmt.Sprintf("%s/v1/containers/%s?projectId=%s", c.cfg.API.ContainersAPI, containerAppName, projectID)
-	req, err := http.NewRequest("GET", url, nil)
+	path := fmt.Sprintf("/v1/containers/%s?projectId=%s", containerAppName, projectID)
+	body, err := c.makeHTTPRequest("GET", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Check if body is empty
 	if len(body) == 0 {
-		return nil, fmt.Errorf("API returned empty response body with status %d", resp.StatusCode)
+		return nil, fmt.Errorf("API returned empty response body")
 	}
 
 	return body, nil
@@ -162,10 +155,6 @@ func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateConta
 	}
 	if protocol == "" {
 		protocol = "http_1"
-	}
-	token, err := c.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
 
 	// Parse environment variables
@@ -227,34 +216,15 @@ func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateConta
 	}
 
 	// Make request to ContainerApps API
-	url := fmt.Sprintf("%s/v2/containers/", c.cfg.API.ContainersAPI)
-	req, err := http.NewRequest("POST", url, strings.NewReader(string(jsonPayload)))
+	path := "/v2/containers/"
+	body, err := c.makeHTTPRequest("POST", path, jsonPayload)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Check if body is empty
 	if len(body) == 0 {
-		return nil, fmt.Errorf("API returned empty response body with status %d", resp.StatusCode)
+		return nil, fmt.Errorf("API returned empty response body")
 	}
 
 	// Create and return an Operation object by parsing the response body
@@ -268,38 +238,12 @@ func (c *ContainerAppsApplication) CreateContainerApp(request domain.CreateConta
 
 // DeleteContainerApp deletes a ContainerApp from Cloud.ru
 func (c *ContainerAppsApplication) DeleteContainerApp(projectID string, containerAppName string) (*domain.Operation, error) {
-	token, err := c.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
 	// Make DELETE request to ContainerApps API
 	// According to the API documentation: DELETE https://containers.api.cloud.ru/v2/containers/<containerapp_name>
-	url := fmt.Sprintf("%s/v2/containers/%s?projectId=%s", c.cfg.API.ContainersAPI, containerAppName, projectID)
-	req, err := http.NewRequest("DELETE", url, nil)
+	path := fmt.Sprintf("/v2/containers/%s?projectId=%s", containerAppName, projectID)
+	body, err := c.makeHTTPRequest("DELETE", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	// According to the API documentation, a successful deletion should return 204 No Content
-	// but we'll accept 200 OK as well
-	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Create and return an Operation object by parsing the response body
@@ -313,37 +257,12 @@ func (c *ContainerAppsApplication) DeleteContainerApp(projectID string, containe
 
 // StartContainerApp starts a ContainerApp in Cloud.ru
 func (c *ContainerAppsApplication) StartContainerApp(projectID string, containerAppName string) (*domain.Operation, error) {
-	token, err := c.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
 	// Make POST request to ContainerApps API to start the container app
 	// According to the API documentation: POST https://containers.api.cloud.ru/v2/containers/<containerapp_name>:start
-	url := fmt.Sprintf("%s/v2/containers/%s:start?projectId=%s", c.cfg.API.ContainersAPI, containerAppName, projectID)
-	req, err := http.NewRequest("POST", url, nil)
+	path := fmt.Sprintf("/v2/containers/%s:start?projectId=%s", containerAppName, projectID)
+	body, err := c.makeHTTPRequest("POST", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	// According to the API documentation, a successful start should return 200 OK
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Create and return an Operation object by parsing the response body
@@ -357,37 +276,12 @@ func (c *ContainerAppsApplication) StartContainerApp(projectID string, container
 
 // StopContainerApp stops a ContainerApp in Cloud.ru
 func (c *ContainerAppsApplication) StopContainerApp(projectID string, containerAppName string) (*domain.Operation, error) {
-	token, err := c.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
 	// Make POST request to ContainerApps API to stop the container app
 	// According to the API documentation: POST https://containers.api.cloud.ru/v2/containers/<containerapp_name>:stop
-	url := fmt.Sprintf("%s/v2/containers/%s:stop?projectId=%s", c.cfg.API.ContainersAPI, containerAppName, projectID)
-	req, err := http.NewRequest("POST", url, nil)
+	path := fmt.Sprintf("/v2/containers/%s:stop?projectId=%s", containerAppName, projectID)
+	body, err := c.makeHTTPRequest("POST", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	// According to the API documentation, a successful stop should return 200 OK
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	var response domain.Operation
@@ -400,35 +294,11 @@ func (c *ContainerAppsApplication) StopContainerApp(projectID string, containerA
 
 // GetContainerAppLogs gets logs for a specific ContainerApp from Cloud.ru API
 func (c *ContainerAppsApplication) GetContainerAppLogs(projectID string, containerAppName string) (*domain.ContainerAppLogs, error) {
-	token, err := c.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
 	// Make request to ContainerApps API for logs
-	url := fmt.Sprintf("%s/v2/containers/%s/logs?projectId=%s", c.cfg.API.ContainersAPI, containerAppName, projectID)
-	req, err := http.NewRequest("GET", url, nil)
+	path := fmt.Sprintf("/v2/containers/%s/logs?projectId=%s", containerAppName, projectID)
+	body, err := c.makeHTTPRequest("GET", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Parse response as a wrapper object containing a slice of ContainerAppLogEntry
@@ -442,35 +312,11 @@ func (c *ContainerAppsApplication) GetContainerAppLogs(projectID string, contain
 
 // GetContainerAppSystemLogs gets system logs for a specific ContainerApp from Cloud.ru API
 func (c *ContainerAppsApplication) GetContainerAppSystemLogs(projectID string, containerAppName string) (*domain.ContainerAppSystemLogs, error) {
-	token, err := c.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-
 	// Make request to ContainerApps API for system logs
-	url := fmt.Sprintf("%s/v2/containers/%s/systemLogs?projectId=%s", c.cfg.API.ContainersAPI, containerAppName, projectID)
-	req, err := http.NewRequest("GET", url, nil)
+	path := fmt.Sprintf("/v2/containers/%s/systemLogs?projectId=%s", containerAppName, projectID)
+	body, err := c.makeHTTPRequest("GET", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Parse response as a wrapper object containing a slice of ContainerAppSystemLogEntry
@@ -631,38 +477,15 @@ func (c *ContainerAppsApplication) PatchContainerApp(projectID string, container
 	}
 
 	// Make PATCH request to ContainerApps API
-	url := fmt.Sprintf("%s/v2/containers/%s?projectId=%s", c.cfg.API.ContainersAPI, containerAppName, projectID)
-	req, err := http.NewRequest("PATCH", url, strings.NewReader(string(jsonPayload)))
+	path := fmt.Sprintf("/v2/containers/%s?projectId=%s", containerAppName, projectID)
+	body, err := c.makeHTTPRequest("PATCH", path, jsonPayload)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	token, err := c.authService.GetAccessToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, err
 	}
 
 	// Check if body is empty
 	if len(body) == 0 {
-		return nil, fmt.Errorf("API returned empty response body with status %d", resp.StatusCode)
+		return nil, fmt.Errorf("API returned empty response body")
 	}
 
 	// Create and return an Operation object by parsing the response body
