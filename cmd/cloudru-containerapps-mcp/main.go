@@ -28,6 +28,7 @@ func main() {
 	dockerInfrastructure := application.NewDockerApplication(cfg)
 	containerAppsService := cloudru.NewContainerAppsApplication(cfg)
 	dockerRegistryService := cloudru.NewArtifactRegistryApplication(cfg)
+	jobsService := cloudru.NewJobsApplication(cfg)
 
 	// Create application layer
 	descriptionService := application.NewDescriptionApplication()
@@ -37,7 +38,7 @@ func main() {
 	log.Println(descriptionService.GetDescription())
 
 	// Create presentation layer
-	mcpServer := presentation.NewMCPServer(descriptionService, dockerInfrastructure, containerAppsService, dockerRegistryService)
+	mcpServer := presentation.NewMCPServer(descriptionService, dockerInfrastructure, containerAppsService, dockerRegistryService, jobsService)
 
 	// Create a new MCP server
 	s := server.NewMCPServer(
@@ -63,6 +64,13 @@ func main() {
 	mcpServer.RegisterGetListDockerRegistriesTool(s)
 	mcpServer.RegisterCreateDockerRegistryTool(s)
 	// mcpServer.RegisterGetRegistryImagesTool(s)
+	mcpServer.RegisterGetListJobsTool(s)
+	mcpServer.RegisterGetJobTool(s)
+	mcpServer.RegisterCreateJobTool(s)
+	mcpServer.RegisterPatchJobTool(s)
+	mcpServer.RegisterDeleteJobTool(s)
+	mcpServer.RegisterExecuteJobTool(s)
+	mcpServer.RegisterGetListExecutionsTool(s)
 
 	// Start the server
 	if err := server.ServeStdio(s); err != nil {

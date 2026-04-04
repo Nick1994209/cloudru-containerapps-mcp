@@ -39,6 +39,7 @@ type MCPServer struct {
 	dockerService         domain.DockerService
 	containerAppsService  domain.ContainerAppsService
 	dockerRegistryService domain.ArtifactRegistryService
+	jobsService           domain.JobsService
 
 	mappedFields map[string]struct {
 		envValue     string
@@ -51,7 +52,7 @@ type MCPServer struct {
 }
 
 // NewMCPServer creates a new MCP server with the required services
-func NewMCPServer(descriptionService domain.DescriptionService, dockerService domain.DockerService, containerAppsService domain.ContainerAppsService, dockerRegistryService domain.ArtifactRegistryService) *MCPServer {
+func NewMCPServer(descriptionService domain.DescriptionService, dockerService domain.DockerService, containerAppsService domain.ContainerAppsService, dockerRegistryService domain.ArtifactRegistryService, jobsService domain.JobsService) *MCPServer {
 	cfg := config.LoadConfig()
 
 	defaultRepoName := cfg.CurrentDir
@@ -65,6 +66,7 @@ func NewMCPServer(descriptionService domain.DescriptionService, dockerService do
 		dockerService:         dockerService,
 		containerAppsService:  containerAppsService,
 		dockerRegistryService: dockerRegistryService,
+		jobsService:           jobsService,
 		cfg:                   cfg,
 
 		mappedFields: map[string]struct {
@@ -213,6 +215,90 @@ func NewMCPServer(descriptionService domain.DescriptionService, dockerService do
 				defaultValue: "",
 				required:     false,
 			},
+			"page_size": {
+				description:  "Page size for pagination",
+				defaultValue: "100",
+				required:     false,
+			},
+			"page_token": {
+				description:  "Page token for pagination",
+				defaultValue: "",
+				required:     false,
+			},
+			"filter": {
+				description:  "Filter expression",
+				defaultValue: "",
+				required:     false,
+			},
+			"order_by": {
+				description:  "Field name to sort by",
+				defaultValue: "",
+				required:     false,
+			},
+			"job_id": {
+				description: "Job ID (deprecated - use job_name instead)",
+				required:    false,
+			},
+			"job_name": {
+				description: "Job name",
+				required:    true,
+				title:       "You can use example: my-job",
+			},
+			"params": {
+				description: "Job execution parameters in JSON format",
+				required:    false,
+			},
+			"job_image": {
+				description: "Job image",
+				required:    true,
+				title:       "Example image: helloworld.cr.cloud.ru/react-hello-world:latest",
+			},
+			"job_privileged": {
+				description:  "Run job in privileged mode",
+				defaultValue: "false",
+				required:     false,
+			},
+			"job_cpu": {
+				description:  "CPU allocation (0.1 CPU - 256 Mi RAM, 0.2 CPU - 512 Mi RAM, 0.3 CPU - 768 RAM, 0.5 CPU - 1Gb RAM ...)",
+				defaultValue: "0.1",
+				required:     false,
+				title:        "Options: 0.1, 0.2, 0.3, 0.5, 1",
+			},
+			"job_description": {
+				description:  "Description of the job",
+				defaultValue: "This Job created via MCP",
+				required:     false,
+			},
+			"job_environment_variables": {
+				description:  "Environment variables in format <name>='<value>';<next_name>='value2'",
+				defaultValue: "",
+				required:     false,
+			},
+			"job_command": {
+				description:  "Command to run in the job (comma-separated values)",
+				defaultValue: "",
+				required:     false,
+			},
+			"job_args": {
+				description:  "Arguments for the command (comma-separated values)",
+				defaultValue: "",
+				required:     false,
+			},
+			"job_retry_count": {
+				description:  "Max job restarts count - if it'll not start - it'll stops tries",
+				defaultValue: "0",
+				required:     false,
+			},
+			"job_execution_timeout": {
+				description:  "Max job execution time in seconds (includes job restarts). If it works longer - it will be terminated.",
+				defaultValue: "86400",
+				required:     false,
+			},
+			"job_run_immediately": {
+				description:  "Run job immediately after creation",
+				defaultValue: "false",
+				required:     false,
+			},
 		},
 	}
 }
@@ -326,4 +412,10 @@ func (s *MCPServer) RegisterAllTools(mcpServer *server.MCPServer) {
 	s.RegisterGetListDockerRegistriesTool(mcpServer)
 	s.RegisterCreateDockerRegistryTool(mcpServer)
 	s.RegisterGetRegistryImagesTool(mcpServer)
+	s.RegisterGetListJobsTool(mcpServer)
+	s.RegisterGetJobTool(mcpServer)
+	s.RegisterCreateJobTool(mcpServer)
+	s.RegisterDeleteJobTool(mcpServer)
+	s.RegisterExecuteJobTool(mcpServer)
+	s.RegisterGetListExecutionsTool(mcpServer)
 }

@@ -36,3 +36,14 @@ type ArtifactRegistryService interface {
 	GetListDockerRegistries(projectID string) ([]DockerRegistry, error)
 	CreateDockerRegistry(projectID string, registryName string, isPublic bool) (*DockerRegistry, error)
 }
+
+// JobsService handles Cloud.ru Jobs API operations
+type JobsService interface {
+	GetListJobs(projectID string, pageSize string) ([]Job, error)
+	GetJob(projectID string, jobName string) (*Job, error)
+	CreateJob(request CreateJobRequest) (*Operation, error)
+	PatchJob(projectID string, jobName string, request PatchJobRequest) (*Operation, error)
+	DeleteJob(projectID string, jobName string) (*Operation, error)
+	ExecuteJob(projectID string, jobName string, params map[string]interface{}) (*JobExecution, error)
+	GetListExecutions(projectID string, jobName string, pageSize string) ([]JobExecution, error)
+}

@@ -1,13 +1,10 @@
-package cloudru
+package utils
 
 import (
 	"testing"
 )
 
 func TestDeepMerge(t *testing.T) {
-	// Create a test instance
-	app := &ContainerAppsApplication{}
-
 	tests := []struct {
 		name     string
 		newData  map[string]interface{}
@@ -180,15 +177,99 @@ func TestDeepMerge(t *testing.T) {
 				"key2": "value2",
 			},
 		},
+		{
+			name: "array with nested objects merge",
+			newData: map[string]interface{}{
+				"key1": []interface{}{
+					map[string]interface{}{
+						"key2": "new_value2",
+						"key4": map[string]interface{}{
+							"key5": "new_key_5",
+						},
+					},
+				},
+			},
+			oldData: map[string]interface{}{
+				"key1": []interface{}{
+					map[string]interface{}{
+						"key2": "new_value2",
+						"key3": "old_value3",
+						"key4": map[string]interface{}{
+							"key5": "old_key_5",
+							"key6": "old_key_6",
+						},
+					},
+				},
+			},
+			expected: map[string]interface{}{
+				"key1": []interface{}{
+					map[string]interface{}{
+						"key2": "new_value2",
+						"key3": "old_value3",
+						"key4": map[string]interface{}{
+							"key5": "new_key_5",
+							"key6": "old_key_6",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "job template with resources merge",
+			newData: map[string]interface{}{
+				"template": map[string]interface{}{
+					"containers": []interface{}{
+						map[string]interface{}{
+							"resources": map[string]interface{}{
+								"cpu":    "0.3",
+								"memory": "768Mi",
+							},
+						},
+					},
+				},
+			},
+			oldData: map[string]interface{}{
+				"name": "test-job-min-130045",
+				"template": map[string]interface{}{
+					"containers": []interface{}{
+						map[string]interface{}{
+							"image": "nvkorolkov-public.cr.cloud.ru/job-did-you-know@sha256:292dd73a2cf83cc0d27bbac1e14a00c71fcb816cbb4f63d3f5e95be685171fa8",
+							"name":  "test-job-min-130045",
+							"resources": map[string]interface{}{
+								"cpu":    "0.1",
+								"memory": "256Mi",
+							},
+							"volumeMounts": []interface{}{},
+						},
+					},
+				},
+			},
+			expected: map[string]interface{}{
+				"name": "test-job-min-130045",
+				"template": map[string]interface{}{
+					"containers": []interface{}{
+						map[string]interface{}{
+							"image": "nvkorolkov-public.cr.cloud.ru/job-did-you-know@sha256:292dd73a2cf83cc0d27bbac1e14a00c71fcb816cbb4f63d3f5e95be685171fa8",
+							"name":  "test-job-min-130045",
+							"resources": map[string]interface{}{
+								"cpu":    "0.3",
+								"memory": "768Mi",
+							},
+							"volumeMounts": []interface{}{},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := app.deepMerge(tt.newData, tt.oldData)
+			result := DeepMerge(tt.newData, tt.oldData)
 
 			// Compare results
 			if !mapsEqual(result, tt.expected) {
-				t.Errorf("deepMerge() = %v, want %v", result, tt.expected)
+				t.Errorf("DeepMerge() = %v, want %v", result, tt.expected)
 			}
 		})
 	}
