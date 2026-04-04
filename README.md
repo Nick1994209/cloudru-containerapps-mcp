@@ -230,6 +230,84 @@ Parameters:
 
 Note: This function is currently disabled in the main.go file (line 53 is commented out).
 
+#### cloudru_jobs_list(project_id, page_size)
+
+Gets a paginated list of jobs from Cloud.ru. Project ID can be set via CLOUDRU_PROJECT_ID environment variable and obtained from console.cloud.ru.
+
+Parameters:
+- `project_id`: Project ID in Cloud.ru (falls back to CLOUDRU_PROJECT_ID env var)
+- `page_size`: Number of items per page (optional)
+
+#### cloudru_create_job(project_id, job_name, job_image, job_privileged, job_cpu, job_description, job_environment_variables, job_command, job_args, job_retry_count, job_execution_timeout, job_run_immediately)
+
+Creates a new Job in Cloud.ru.
+
+Parameters:
+- `project_id`: Project ID in Cloud.ru (falls back to CLOUDRU_PROJECT_ID env var)
+- `job_name`: Name of the Job to create
+- `job_image`: Image for the Job
+- `job_privileged`: Run container in privileged mode (optional, defaults to "false")
+- `job_cpu`: CPU allocation (optional, defaults to "0.1", options: 0.1, 0.2, 0.5, 1)
+- `job_description`: Description of the job (optional)
+- `job_environment_variables`: Environment variables in format <name>='<value>';<next_name>='value2' (optional)
+- `job_command`: Command to run in the container (comma-separated values) (optional)
+- `job_args`: Arguments for the command (comma-separated values) (optional)
+- `job_retry_count`: Number of retry attempts (optional)
+- `job_execution_timeout`: Execution timeout in seconds (optional)
+- `job_run_immediately`: Run the job immediately after creation (optional, defaults to "false")
+
+#### cloudru_patch_job(project_id, job_name, job_image, job_privileged, job_cpu, job_description, job_environment_variables, job_command, job_args, job_retry_count, job_execution_timeout, job_run_immediately)
+
+Patches an existing Job in Cloud.ru. This function gets the current state, merges it with the new values, and updates the job.
+
+Parameters:
+- `project_id`: Project ID in Cloud.ru (falls back to CLOUDRU_PROJECT_ID env var)
+- `job_name`: Name of the Job to patch
+- `job_image`: Image for the Job (optional, will preserve existing if not provided)
+- `job_privileged`: Run container in privileged mode (optional, will preserve existing if not provided)
+- `job_cpu`: CPU allocation (optional, will preserve existing if not provided)
+- `job_description`: Description of the job (optional, will preserve existing if not provided)
+- `job_environment_variables`: Environment variables in format <name>='<value>';<next_name>='value2' (optional, will preserve existing if not provided)
+- `job_command`: Command to run in the container (comma-separated values) (optional, will preserve existing if not provided)
+- `job_args`: Arguments for the command (comma-separated values) (optional, will preserve existing if not provided)
+- `job_retry_count`: Number of retry attempts (optional, will preserve existing if not provided)
+- `job_execution_timeout`: Execution timeout in seconds (optional, will preserve existing if not provided)
+- `job_run_immediately`: Run the job immediately after patching (optional, will preserve existing if not provided)
+
+#### cloudru_execute_job(project_id, job_name, params)
+
+Executes a Job in Cloud.ru by name. Project ID can be set via CLOUDRU_PROJECT_ID environment variable and obtained from console.cloud.ru.
+
+Parameters:
+- `project_id`: Project ID in Cloud.ru (falls back to CLOUDRU_PROJECT_ID env var)
+- `job_name`: Name of the Job to execute
+- `params`: JSON string with parameters for the job execution (optional)
+
+#### cloudru_job_executions_list(project_id, job_name, page_size)
+
+Gets a paginated list of job executions from Cloud.ru. Project ID can be set via CLOUDRU_PROJECT_ID environment variable and obtained from console.cloud.ru.
+
+Parameters:
+- `project_id`: Project ID in Cloud.ru (falls back to CLOUDRU_PROJECT_ID env var)
+- `job_name`: Name of the Job to get executions for
+- `page_size`: Number of items per page (optional)
+
+#### cloudru_get_job(project_id, job_name)
+
+Gets a specific Job from Cloud.ru by name. Project ID can be set via CLOUDRU_PROJECT_ID environment variable and obtained from console.cloud.ru.
+
+Parameters:
+- `project_id`: Project ID in Cloud.ru (falls back to CLOUDRU_PROJECT_ID env var)
+- `job_name`: Name of the Job to retrieve
+
+#### cloudru_delete_job(project_id, job_name)
+
+Deletes a Job from Cloud.ru. WARNING: This action cannot be undone!
+
+Parameters:
+- `project_id`: Project ID in Cloud.ru (falls back to CLOUDRU_PROJECT_ID env var)
+- `job_name`: Name of the Job to delete
+
 ## Currently Disabled Functions
 
 The following functions are implemented but currently disabled in the main.go file:

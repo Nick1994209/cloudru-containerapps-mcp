@@ -3,6 +3,7 @@ package application
 import (
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/config"
 	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/domain"
+	"github.com/Nick1994209/cloudru-containerapps-mcp/internal/version"
 )
 
 // DescriptionApplication implements the DescriptionService interface
@@ -17,7 +18,7 @@ func NewDescriptionApplication() domain.DescriptionService {
 func (d *DescriptionApplication) GetDescription() string {
 	cfg := config.LoadConfig()
 
-	return `Cloud.ru Container Apps MCP provides functions to interact with Cloud.ru Artifact Registry:
+	return `Cloud.ru Container Apps MCP ` + version.GetVersion() + ` provides functions to interact with Cloud.ru Artifact Registry:
 
 1. cloudru_containerapps_description() - Returns usage instructions for this MCP
 2. cloudru_docker_login(registry_name) - Login to Cloud.ru Artifact registry (Docker registry)
@@ -32,6 +33,13 @@ func (d *DescriptionApplication) GetDescription() string {
 11. cloudru_get_containerapp_logs(project_id, containerapp_name) - Get logs for a specific Container App from Cloud.ru by name. Project ID can be set via PROJECT_ID environment variable and obtained from console.cloud.ru
 12. cloudru_get_list_docker_registries(project_id) - Get list of Docker Registries from Cloud.ru. Project ID can be set via PROJECT_ID environment variable and obtained from console.cloud.ru
 13. cloudru_create_docker_registry(project_id, registry_name, registry_is_public) - Create a new Docker Registry in Cloud.ru
+14. cloudru_jobs_list(project_id, page_size) - Get paginated list of jobs from Cloud.ru. Project ID can be set via PROJECT_ID environment variable and obtained from console.cloud.ru
+15. cloudru_create_job(project_id, job_name, job_image, job_privileged, job_cpu, job_description, job_environment_variables, job_command, job_args, job_retry_count, job_execution_timeout, job_run_immediately) - Create a new Job in Cloud.ru
+16. cloudru_patch_job(project_id, job_name, job_image, job_privileged, job_cpu, job_description, job_environment_variables, job_command, job_args, job_retry_count, job_execution_timeout, job_run_immediately) - Patch a Job in Cloud.ru. This will get the current state, merge with new values, and update the job.
+17. cloudru_execute_job(project_id, job_name, params) - Execute a Job in Cloud.ru by name. Project ID can be set via PROJECT_ID environment variable and obtained from console.cloud.ru
+18. cloudru_job_executions_list(project_id, job_name, page_size) - Get paginated list of job executions from Cloud.ru. Project ID can be set via PROJECT_ID environment variable and obtained from console.cloud.ru
+19. cloudru_get_job(project_id, job_name) - Get a specific Job from Cloud.ru by name. Project ID can be set via PROJECT_ID environment variable and obtained from console.cloud.ru
+20. cloudru_delete_job(project_id, job_name) - Delete a Job from Cloud.ru. WARNING: This action cannot be undone!
 
 Environment variables can be used as fallbacks for parameters:
 
