@@ -27,11 +27,14 @@ func NewJobsApplication(cfg *config.Config) domain.JobsService {
 }
 
 // makeHTTPRequest makes an HTTP request to the Cloud.ru API
-func (j *JobsApplication) makeHTTPRequest(method, url string, body []byte) ([]byte, error) {
+func (j *JobsApplication) makeHTTPRequest(method, path string, body []byte) ([]byte, error) {
 	token, err := j.authService.GetAccessToken()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
+
+	// Construct full URL by combining base API URL with path
+	url := j.cfg.API.ContainersAPI + path
 
 	var bodyReader io.Reader
 	if body != nil {
@@ -73,8 +76,8 @@ func (j *JobsApplication) GetListJobs(projectID string, pageSize string) ([]doma
 	}
 
 	// Make request to Jobs API
-	url := fmt.Sprintf("%s/v2/jobs?projectId=%s&pageSize=%s", j.cfg.API.ContainersAPI, projectID, pageSize)
-	body, err := j.makeHTTPRequest("GET", url, nil)
+	path := fmt.Sprintf("/v2/jobs?projectId=%s&pageSize=%s", projectID, pageSize)
+	body, err := j.makeHTTPRequest("GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -94,8 +97,8 @@ func (j *JobsApplication) GetListJobs(projectID string, pageSize string) ([]doma
 // GetJob gets a specific Job from Cloud.ru API by name
 func (j *JobsApplication) GetJob(projectID string, jobName string) (*domain.Job, error) {
 	// Make request to Jobs API
-	url := fmt.Sprintf("%s/v2/jobs/%s?projectId=%s", j.cfg.API.ContainersAPI, jobName, projectID)
-	body, err := j.makeHTTPRequest("GET", url, nil)
+	path := fmt.Sprintf("/v2/jobs/%s?projectId=%s", jobName, projectID)
+	body, err := j.makeHTTPRequest("GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -155,8 +158,8 @@ func (j *JobsApplication) CreateJob(request domain.CreateJobRequest) (*domain.Op
 	}
 
 	// Make request to Jobs API
-	url := fmt.Sprintf("%s/v2/jobs", j.cfg.API.ContainersAPI)
-	body, err := j.makeHTTPRequest("POST", url, jsonBody)
+	path := "/v2/jobs"
+	body, err := j.makeHTTPRequest("POST", path, jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -173,8 +176,8 @@ func (j *JobsApplication) CreateJob(request domain.CreateJobRequest) (*domain.Op
 // DeleteJob deletes a specific Job from Cloud.ru
 func (j *JobsApplication) DeleteJob(projectID string, jobName string) (*domain.Operation, error) {
 	// Make request to Jobs API
-	url := fmt.Sprintf("%s/v2/jobs/%s?projectId=%s", j.cfg.API.ContainersAPI, jobName, projectID)
-	body, err := j.makeHTTPRequest("DELETE", url, nil)
+	path := fmt.Sprintf("/v2/jobs/%s?projectId=%s", jobName, projectID)
+	body, err := j.makeHTTPRequest("DELETE", path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -203,8 +206,8 @@ func (j *JobsApplication) ExecuteJob(projectID string, jobName string, params ma
 	}
 
 	// Make request to Jobs API
-	url := fmt.Sprintf("%s/v2/jobs/%s:execute", j.cfg.API.ContainersAPI, jobName)
-	body, err := j.makeHTTPRequest("POST", url, jsonBody)
+	path := fmt.Sprintf("/v2/jobs/%s:execute", jobName)
+	body, err := j.makeHTTPRequest("POST", path, jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -226,10 +229,10 @@ func (j *JobsApplication) GetListExecutions(projectID string, jobName string, pa
 	}
 
 	// Build URL with query parameters
-	url := fmt.Sprintf("%s/v2/jobs/%s/executions?projectId=%s&pageSize=%s", j.cfg.API.ContainersAPI, jobName, projectID, pageSize)
+	path := fmt.Sprintf("/v2/jobs/%s/executions?projectId=%s&pageSize=%s", jobName, projectID, pageSize)
 
 	// Make request to Jobs API
-	body, err := j.makeHTTPRequest("GET", url, nil)
+	body, err := j.makeHTTPRequest("GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -249,8 +252,8 @@ func (j *JobsApplication) GetListExecutions(projectID string, jobName string, pa
 // getJobRaw gets the raw response body from the Jobs API
 func (j *JobsApplication) getJobRaw(projectID string, jobName string) ([]byte, error) {
 	// Make request to Jobs API
-	url := fmt.Sprintf("%s/v2/jobs/%s?projectId=%s", j.cfg.API.ContainersAPI, jobName, projectID)
-	body, err := j.makeHTTPRequest("GET", url, nil)
+	path := fmt.Sprintf("/v2/jobs/%s?projectId=%s", jobName, projectID)
+	body, err := j.makeHTTPRequest("GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -365,8 +368,8 @@ func (j *JobsApplication) PatchJob(projectID string, jobName string, updateReque
 	}
 
 	// Make PATCH request to Jobs API
-	url := fmt.Sprintf("%s/v2/jobs/%s?projectId=%s", j.cfg.API.ContainersAPI, jobName, projectID)
-	body, err := j.makeHTTPRequest("PATCH", url, jsonPayload)
+	path := fmt.Sprintf("/v2/jobs/%s?projectId=%s", jobName, projectID)
+	body, err := j.makeHTTPRequest("PATCH", path, jsonPayload)
 	if err != nil {
 		return nil, err
 	}
