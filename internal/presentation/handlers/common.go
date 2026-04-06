@@ -286,12 +286,12 @@ func NewMCPServer(descriptionService domain.DescriptionService, dockerService do
 			},
 			"job_retry_count": {
 				description:  "Max job restarts count - if it'll not start - it'll stops tries",
-				defaultValue: "0",
+				defaultValue: "3",
 				required:     false,
 			},
 			"job_execution_timeout": {
 				description:  "Max job execution time in seconds (includes job restarts). If it works longer - it will be terminated.",
-				defaultValue: "86400",
+				defaultValue: "3600",
 				required:     false,
 			},
 			"job_run_immediately": {
